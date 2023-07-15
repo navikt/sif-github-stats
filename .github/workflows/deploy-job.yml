@@ -21,22 +21,22 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - uses: gradle/wrapper-validation-action@v1    
+
       - name: Setup Gradle to generate and submit dependency graphs
         uses: gradle/gradle-build-action@dependency-graph
         with:
           dependency-graph: generate-and-submit
+
       - uses: actions/setup-java@v3
         with:
           java-version: 17
           distribution: corretto
           cache: gradle
 
-      - name: Build shadowjar
-        run: ./gradlew shadowjar
+      - name: Build to generate dep graph snapshot & create shadowjar
+        run: ./gradlew build shadowjar
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          
-          
 
       - uses: nais/docker-build-push@v0
         id: docker-push
