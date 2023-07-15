@@ -19,6 +19,9 @@ jobs:
       security-events: write
     runs-on: ubuntu-latest
     steps:
+      - uses: GitHubSecurityLab/actions-permissions/monitor@v1
+        with:
+          config: ${{ vars.PERMISSIONS_CONFIG }}
       - uses: actions/checkout@v3
       - uses: gradle/wrapper-validation-action@v1    
 
