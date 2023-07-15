@@ -3,7 +3,7 @@ import org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 val ktorVersion = "2.3.2"
-val logbackVersion = "1.4.7"
+val logbackVersion = "1.4.8"
 val micrometerVersion = "1.11.1"
 val prometheusVersion = "0.16.0"
 
