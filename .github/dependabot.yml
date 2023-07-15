@@ -6,7 +6,8 @@ updates:
       interval: daily
     groups:
       groupall:
-        patterns: "*"
+        patterns: 
+          - "*"
 
   - package-ecosystem: github-actions
     directory: "/"
@@ -14,7 +15,8 @@ updates:
       interval: daily
     groups:
       groupall:
-        patterns: "*"
+        patterns: 
+          - "*"
 
   - package-ecosystem: docker
     directory: "/"
