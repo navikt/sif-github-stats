@@ -4,13 +4,15 @@ updates:
     directory: "/"
     schedule:
       interval: daily
-    open-pull-requests-limit: 15
+    groups:
+      patterns: "*"
 
   - package-ecosystem: github-actions
     directory: "/"
     schedule:
       interval: daily
-    open-pull-requests-limit: 10
+    groups:
+      patterns: "*"
 
   - package-ecosystem: docker
     directory: "/"
