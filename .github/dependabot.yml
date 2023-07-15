@@ -5,17 +5,18 @@ updates:
     schedule:
       interval: daily
     groups:
-      patterns: "*"
+      groupall:
+        patterns: "*"
 
   - package-ecosystem: github-actions
     directory: "/"
     schedule:
       interval: daily
     groups:
-      patterns: "*"
+      groupall:
+        patterns: "*"
 
   - package-ecosystem: docker
     directory: "/"
     schedule:
       interval: daily
-    open-pull-requests-limit: 10
