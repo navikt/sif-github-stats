@@ -5,7 +5,7 @@ updates:
     schedule:
       interval: daily
     groups:
-      groupall:
+      gradle:
         patterns: 
           - "*"
 
@@ -14,7 +14,7 @@ updates:
     schedule:
       interval: daily
     groups:
-      groupall:
+      github:
         patterns: 
           - "*"
 
