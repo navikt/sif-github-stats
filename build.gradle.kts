@@ -3,6 +3,7 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 val ktorVersion = "2.3.2"
 val logbackVersion = "1.4.8"
+val logbackEncoderVersion = "7.4"
 val micrometerVersion = "1.11.1"
 val prometheusVersion = "0.16.0"
 
@@ -28,7 +29,7 @@ dependencies {
     implementation("io.prometheus:simpleclient:$prometheusVersion")
     implementation("io.prometheus:simpleclient_pushgateway:$prometheusVersion")
 
-    implementation("io.ktor:ktor-client-logging:$ktorVersion")
+    implementation("net.logstash.logback:logstash-logback-encoder:$logbackEncoderVersion")
     implementation("ch.qos.logback:logback-classic:$logbackVersion")
 }
 
