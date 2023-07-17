@@ -5,7 +5,7 @@ Naisjob som henter statistikk fra github og pusher til prometheus.
 
 # Komme i gang
 
-Lagre PAT for github i [google secrets manager](https://cloud.google.com/secret-manager) med navnet SIF_STATS_GITHUB_PAT
+Lagre PAT for github i [google secrets manager](https://cloud.google.com/secret-manager) med navnet SIF-STATS-GITHUB-PAT
 
 ---
 
