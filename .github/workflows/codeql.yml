@@ -1,0 +1,11 @@
+name: CodeQL
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  analyze:
+    name: Analyze
+    uses: navikt/sif-gha-workflows/.github/workflows/codeql-analysis.yml@main
+    secrets: inherit
