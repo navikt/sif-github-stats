@@ -65,7 +65,7 @@ jobs:
         env:
           APIKEY: ${{ secrets.NAIS_DEPLOY_APIKEY }}
           CLUSTER: dev-gcp
-          RESOURCE: nais/naisjob.yaml
+          RESOURCE: nais/naisjob.yml
           IMAGE: ${{ steps.docker-push.outputs.image }}
 
 #      - name: Deploy til prod-gcp
@@ -74,5 +74,5 @@ jobs:
 #        env:
 #          APIKEY: ${{ secrets.NAIS_DEPLOY_APIKEY }}
 #          CLUSTER: prod-gcp
-#          RESOURCE: nais/naisjob.yaml
+#          RESOURCE: nais/naisjob.yml
 #          IMAGE: ${{ steps.docker-push.outputs.image }}
