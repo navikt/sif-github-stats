@@ -32,24 +32,9 @@ fun main(
     }
     logger.info("Found ${teamRepositories.size} repositories for team $githubTeam")
 
-    val filteredRepos = listOf(
-        "aad-iac",
-        "dokgen",
-        "familie-endringslogg",
-        "folketrygdloven-beregningsgrunnlag-regelmodell",
-        "vault-iac",
-        "ft-kalkulus-verdikjede",
-        "fp-nare",
-        "fp-prosesstask",
-        "ft-frontend-saksbehandling",
-        "legacy-avhengigheter",
-        "dev-jakarta-transform"
-    )
-
     // Filter out archived repos & repos that doesn't belong to the team
     val filtrertResponse = teamRepositories.filter {
-        (it.permissions.push || it.permissions.admin || it.permissions.maintain) &&
-                !it.archived && !filteredRepos.contains(it.name)
+        (it.permissions.push || it.permissions.admin || it.permissions.maintain) && !it.archived
     }.map { it.name }
     logger.info("Filtered out ${teamRepositories.size - filtrertResponse.size} repositories")
 
