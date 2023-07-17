@@ -19,9 +19,6 @@ jobs:
 #      security-events: write
     runs-on: ubuntu-latest
     steps:
-      - uses: GitHubSecurityLab/actions-permissions/monitor@v1
-        with:
-          config: ${{ vars.PERMISSIONS_CONFIG }}
       - uses: actions/checkout@v3
       - uses: gradle/wrapper-validation-action@v1    
 
@@ -41,29 +38,30 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-#      - uses: nais/docker-build-push@v0
-#        id: docker-push
-#        with:
-#          team: k9saksbehandling
-#          push_image: true
-#          dockerfile: Dockerfile
-#          docker_context: .
-#          project_id: ${{ vars.NAIS_MANAGEMENT_PROJECT_ID }}
-#          identity_provider: ${{ secrets.NAIS_WORKLOAD_IDENTITY_PROVIDER }}
+      - uses: nais/docker-build-push@v0
+        id: docker-push
+        with:
+          team: k9saksbehandling
+          push_image: true
+          pull: true
+          dockerfile: Dockerfile
+          docker_context: .
+          project_id: ${{ vars.NAIS_MANAGEMENT_PROJECT_ID }}
+          identity_provider: ${{ secrets.NAIS_WORKLOAD_IDENTITY_PROVIDER }}
 
-#      - name: Run Trivy vulnerability scanner on docker image
-#        uses: aquasecurity/trivy-action@master
-#        with:
-#          image-ref: ${{ steps.docker-push.outputs.image }}
-#          ignore-unfixed: true
-#          format: 'sarif'
-#          output: 'trivy-results.sarif'
+      - name: Run Trivy vulnerability scanner on docker image
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ steps.docker-push.outputs.image }}
+          ignore-unfixed: true
+          format: 'sarif'
+          output: 'trivy-results.sarif'
 
-#      - name: Upload Trivy scan results to GitHub Security tab
-#        uses: github/codeql-action/upload-sarif@v2
-#        if: always()
-#        with:
-#          sarif_file: 'trivy-results.sarif'
+      - name: Upload Trivy scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v2
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
 
 #      - name: Deploy til dev-gcp
 #        uses: nais/deploy/actions/deploy@v1
