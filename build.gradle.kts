@@ -1,5 +1,4 @@
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
-import org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 val ktorVersion = "2.3.2"
@@ -29,13 +28,8 @@ dependencies {
     implementation("io.prometheus:simpleclient:$prometheusVersion")
     implementation("io.prometheus:simpleclient_pushgateway:$prometheusVersion")
 
-
     implementation("io.ktor:ktor-client-logging:$ktorVersion")
     implementation("ch.qos.logback:logback-classic:$logbackVersion")
-
-    testImplementation(kotlin("test"))
-    testImplementation("io.mockk:mockk:1.13.5")
-    testImplementation("io.ktor:ktor-server-test-host:$ktorVersion")
 }
 
 tasks {
@@ -43,29 +37,13 @@ tasks {
         kotlinOptions.jvmTarget = "17"
     }
 
-    named<KotlinCompile>("compileTestKotlin") {
-        kotlinOptions.jvmTarget = "17"
-    }
-
-    withType<Test> {
-        useJUnitPlatform()
-        testLogging {
-            events("passed", "skipped", "failed")
-            exceptionFormat = FULL
-            showExceptions = true
-            showCauses = true
-            showStackTraces = true
-        }
-    }
-
-
     withType<ShadowJar> {
         archiveBaseName.set("app")
         archiveClassifier.set("")
         manifest {
             attributes(
                 mapOf(
-                    "Main-Class" to "no.nav.MainKt"
+                    "Main-Class" to "no.nav.github_stats.MainKt"
                 )
             )
         }

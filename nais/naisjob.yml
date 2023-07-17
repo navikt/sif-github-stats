@@ -16,10 +16,10 @@ spec:
       cpu: 100m
       memory: 256Mi
   envFrom:
-    - secret: SIF-STATS-GITHUB-TOKEN
+    - secret: SIF_STATS_GITHUB_PAT
   env:
     - name: PUSH_GATEWAY_ADDRESS
-      value: prometheus-pushgateway.nais-system:9091
+      value: "prometheus-pushgateway.nais-system:9091"
     - name: GITHUB_API_VERSION
       value: "2022-11-28"
     - name: GITHUB_API_URL

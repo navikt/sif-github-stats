@@ -1,4 +1,4 @@
-package github_stats
+package no.nav.github_stats
 
 import io.ktor.client.*
 import io.ktor.client.engine.cio.*
@@ -23,7 +23,7 @@ class ApplicationContext(
     ) {
         fun build(): ApplicationContext {
             val benyttetEnv = env ?: System.getenv()
-            val githubApiToken = requireNotNull(benyttetEnv["SIF-STATS-GITHUB-TOKEN"])
+            val githubApiToken = requireNotNull(benyttetEnv["SIF_STATS_GITHUB_PAT"])
             val githubApiVersion = benyttetEnv["GITHUB_API_VERSION"] ?: "2022-11-28"
 
             val benyttetGithubApiUrl = githubApiUrl ?: requireNotNull(benyttetEnv["GITHUB_API_URL"])

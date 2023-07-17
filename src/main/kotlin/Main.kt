@@ -1,4 +1,4 @@
-package github_stats
+package no.nav.github_stats
 
 import io.ktor.client.call.*
 import io.ktor.client.request.*
@@ -10,9 +10,8 @@ import org.slf4j.LoggerFactory
 
 val logger = LoggerFactory.getLogger("Main")
 
-fun main(
-    applicationContext: ApplicationContext = ApplicationContext.Builder().build()
-) {
+fun main() {
+    val applicationContext: ApplicationContext = ApplicationContext.Builder().build()
     val githubTeam = "k9saksbehandling"
     val githubApiUrl = applicationContext.githubApiUrl
 
