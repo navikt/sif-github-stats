@@ -12,10 +12,10 @@ on:
 
 jobs:
   build:
-#    permissions:
-#      contents: read
-#      id-token: write
-#      security-events: write
+    permissions:
+      contents: write # dependency-graph needs write
+      id-token: write # for nais/docker-build-push
+      security-events: write # trivy sarif upload
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -34,8 +34,6 @@ jobs:
 
       - name: Build to generate dep graph snapshot & create shadowjar
         run: ./gradlew build shadowjar
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - uses: nais/docker-build-push@v0
         id: docker-push
