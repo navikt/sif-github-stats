@@ -60,13 +60,13 @@ jobs:
         with:
           sarif_file: 'trivy-results.sarif'
 
-#      - name: Deploy til dev-gcp
-#        uses: nais/deploy/actions/deploy@v1
-#        env:
-#          APIKEY: ${{ secrets.NAIS_DEPLOY_APIKEY }}
-#          CLUSTER: dev-gcp
-#          RESOURCE: nais/naisjob.yaml
-#          IMAGE: ${{ steps.docker-push.outputs.image }}
+      - name: Deploy til dev-gcp
+        uses: nais/deploy/actions/deploy@v1
+        env:
+          APIKEY: ${{ secrets.NAIS_DEPLOY_APIKEY }}
+          CLUSTER: dev-gcp
+          RESOURCE: nais/naisjob.yaml
+          IMAGE: ${{ steps.docker-push.outputs.image }}
 
 #      - name: Deploy til prod-gcp
 #        if: github.ref == 'refs/heads/main' && !contains(github.event.head_commit.message, 'ci skip')
