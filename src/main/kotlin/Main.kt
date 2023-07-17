@@ -46,7 +46,7 @@ fun main() {
                     parameter("state", "open")
                 }.body<List<PullRequests>>().size
             } catch (e: Exception) {
-                logger.error("Error fetching open pull requests for repository: $repository", e.message)
+                logger.error("Error fetching open pull requests for repository: $repository, Msg: [${e.message}]")
                 null
             }
         }.filterNot { it.value == null }.mapValues { it.value!! }
@@ -55,6 +55,7 @@ fun main() {
 
     val gauge = Gauge.build()
         .name("sif_github_stats_open_prs")
+        .labelNames("repository")
         .help("Open Github PRs")
         .register(collectorRegistry)
 
