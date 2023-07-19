@@ -1,78 +1,71 @@
-name: Bygg og deploy
+name: Build
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
     paths-ignore:
       - '**.md'
       - '**.MD'
       - '.gitignore'
       - 'LICENSE'
       - 'CODEOWNERS'
-  workflow_dispatch:
+
+env:
+  TEAM: k9saksbehandling
+  READERTOKEN: false
 
 jobs:
-  build:
+  codeql:
+    uses: navikt/sif-gha-workflows/.github/workflows/gradle-codeql.yml@main
     permissions:
-      contents: write # dependency-graph needs write
-      id-token: write # for nais/docker-build-push
-      security-events: write # trivy sarif upload
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: gradle/wrapper-validation-action@v1
+      actions: read
+      contents: read
+      pull-requests: read
+      security-events: write
+    secrets: inherit
+    with:
+      readertoken: ${{ env.READERTOKEN }}
+      package-command: './gradlew clean build -x test'
+      branch: main
 
-      - name: Setup Gradle to generate and submit dependency graphs
-        uses: gradle/gradle-build-action@dependency-graph
-        with:
-          dependency-graph: generate-and-submit
+  test:
+    uses: navikt/sif-gha-workflows/.github/workflows/gradle-test.yml@main
+    permissions:
+      contents: read
+    secrets: inherit
+    with:
+      readertoken: ${{ env.READERTOKEN }}
 
-      - uses: actions/setup-java@v3
-        with:
-          java-version: 17
-          distribution: corretto
-          cache: gradle
+  build:
+    uses: navikt/sif-gha-workflows/.github/workflows/gradle-build.yml@main
+    permissions:
+      contents: write
+      id-token: write
+    secrets: inherit
+    with:
+      team: ${{ env.TEAM }}
+      dockercontext: .
+      readertoken: ${{ env.READERTOKEN }}
 
-      - name: Build to generate dep graph snapshot & create shadowjar
-        run: ./gradlew build shadowjar
+  trivy:
+    needs: [ build ]
+    uses: navikt/sif-gha-workflows/.github/workflows/trivy.yml@main
+    permissions:
+      contents: write
+      security-events: write
+      id-token: write
+    secrets: inherit
+    with:
+      image: ${{ needs.build.outputs.image }}
+      team: ${{ env.TEAM }}
 
-      - uses: nais/docker-build-push@v0
-        id: docker-push
-        with:
-          team: k9saksbehandling
-          push_image: true
-          pull: true
-          dockerfile: Dockerfile
-          docker_context: .
-          project_id: ${{ vars.NAIS_MANAGEMENT_PROJECT_ID }}
-          identity_provider: ${{ secrets.NAIS_WORKLOAD_IDENTITY_PROVIDER }}
-
-      - name: Run Trivy vulnerability scanner on docker image
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: ${{ steps.docker-push.outputs.image }}
-          ignore-unfixed: true
-          format: 'sarif'
-          output: 'trivy-results.sarif'
-
-      - name: Upload Trivy scan results to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v2
-        if: always()
-        with:
-          sarif_file: 'trivy-results.sarif'
-
-      - name: Deploy til dev-gcp
-        uses: nais/deploy/actions/deploy@v1
-        env:
-          APIKEY: ${{ secrets.NAIS_DEPLOY_APIKEY }}
-          CLUSTER: dev-gcp
-          RESOURCE: nais/naisjob.yml
-          IMAGE: ${{ steps.docker-push.outputs.image }}
-
-#      - name: Deploy til prod-gcp
-#        if: github.ref == 'refs/heads/main' && !contains(github.event.head_commit.message, 'ci skip')
-#        uses: nais/deploy/actions/deploy@v1
-#        env:
-#          APIKEY: ${{ secrets.NAIS_DEPLOY_APIKEY }}
-#          CLUSTER: prod-gcp
-#          RESOURCE: nais/naisjob.yml
-#          IMAGE: ${{ steps.docker-push.outputs.image }}
+  deploy:
+    needs: [ test, build ]
+    uses: navikt/sif-gha-workflows/.github/workflows/gradle-deploy.yml@main
+    permissions:
+      contents: read
+    secrets: inherit
+    with:
+      image: ${{ needs.build.outputs.image }}
+      environment: gcp
+      deploy-prod: true
