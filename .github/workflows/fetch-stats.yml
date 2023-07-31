@@ -1,0 +1,20 @@
+name: Fetch GitHub Stats
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_API_URL: https://api.github.com
+      PUSH_GATEWAY_ADDRESS: your-push-gateway-address
+    steps:
+    - uses: actions/checkout@v3
+    - uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+    - run: npm install
+    - run: npm run build
+    - run: node dist/index.js
+

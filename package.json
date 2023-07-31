@@ -1,0 +1,22 @@
+{
+  "name": "sif-github-stats",
+  "version": "1.0.0",
+  "main": "index.ts",
+  "repository": "https://github.com/navikt/sif-github-stats.git",
+  "author": "albrektsson <emil.albrektsson@nav.no>",
+  "license": "MIT",
+  "private": false,
+  "dependencies": {
+    "@actions/core": "^1.10.0",
+    "@actions/github": "^5.1.1",
+    "axios": "^1.4.0",
+    "prom-client": "^14.2.0"
+  },
+  "scripts": {
+    "build": "tsc"
+  },
+  "devDependencies": {
+    "@types/node": "^20.4.5",
+    "typescript": "^5.1.6"
+  }
+}
