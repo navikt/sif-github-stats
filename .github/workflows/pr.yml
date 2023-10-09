@@ -18,14 +18,3 @@ jobs:
 
       - name: Build shadowjar
         run: ./gradlew shadowjar
-
-      - uses: nais/docker-build-push@v0
-        with:
-          team: k9saksbehandling
-          push_image: true
-          tag: latest
-          pull: true
-          dockerfile: Dockerfile
-          docker_context: .
-          project_id: ${{ vars.NAIS_MANAGEMENT_PROJECT_ID }}
-          identity_provider: ${{ secrets.NAIS_WORKLOAD_IDENTITY_PROVIDER }}
