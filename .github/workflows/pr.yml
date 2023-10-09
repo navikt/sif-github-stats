@@ -22,7 +22,8 @@ jobs:
       - uses: nais/docker-build-push@v0
         with:
           team: k9saksbehandling
-          push_image: false
+          push_image: push
+          tag: latest
           pull: true
           dockerfile: Dockerfile
           docker_context: .
