@@ -1,0 +1,28 @@
+name: Stale pull requests
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 6 * * 1'
+jobs:
+  stale-pull-requests:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 18
+          cache: 'npm'
+
+      - run: npm ci
+
+      - run: gh search repos archived:false --topic=sykdom-i-familien --owner=navikt --limit=200 --json "name" --jq ".[] | .name" > repos.txt
+        env:
+          GITHUB_TOKEN: ${{ secrets.READER_TOKEN }}
+
+      - run: npm run stale-pull-request
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}

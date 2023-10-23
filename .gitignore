@@ -8,3 +8,6 @@
 *.iws
 .DS_Store
 *.graphqls
+node_modules/
+dist/
+bin/
