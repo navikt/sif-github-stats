@@ -21,9 +21,9 @@ jobs:
 
       - run: gh search repos archived:false --topic=sykdom-i-familien --owner=navikt --limit=200 --json "name" --jq ".[] | .name" > repos.txt
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.READER_TOKEN }}
 
       - run: npm run dependabot-alerts
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.READER_TOKEN }}
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
