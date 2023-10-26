@@ -25,5 +25,5 @@ jobs:
 
       - run: npm run dependabot-alerts
         env:
-          GITHUB_TOKEN: ${{ secrets.READER_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.BOT_PAT }}
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
