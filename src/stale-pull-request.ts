@@ -7,7 +7,7 @@ import { sendSlackMessage } from './common/slackPosting'
 import { numberToSlackEmoji } from './common/numberToEmoji'
 
 const repoer = hentRepoer()
-const antallDager = 7
+const antallDager = 30
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const blocks = [] as any[]
 
