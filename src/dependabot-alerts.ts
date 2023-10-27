@@ -24,7 +24,7 @@ for (const repo of repoer) {
                 text: `:error: *<https://www.github.com/navikt/${repo}|${repo}>* Har totalt <https://www.github.com/navikt/${repo}/security/dependabot|${dependabotAlerts.data.length} dependabot alerts>.`,
             },
         })
-        dependabotAlerts.data.map((alert, idx) => {
+        dependabotAlerts.data.map((alert) => {
             blocks.push({
                 type: 'section',
                 text: {
