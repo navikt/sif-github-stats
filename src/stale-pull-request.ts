@@ -4,7 +4,6 @@ import * as dayjs from 'dayjs'
 import { octokit } from './octokit'
 import { hentRepoer } from './common/hentRepoer'
 import { sendSlackMessage } from './common/slackPosting'
-import { numberToSlackEmoji } from './common/numberToEmoji'
 
 const repoer = hentRepoer()
 const antallDager = 30
@@ -27,9 +26,8 @@ for (const repo of repoer) {
                 type: 'mrkdwn',
                 text: `
 
-:warning: * <https://www.github.com/navikt/${repo}|${repo}>*
-Har totalt <https://www.github.com/navikt/${repo}/pulls|${pulls.length} pull requests>. ${gamle.length} av dem er eldre enn ${antallDager} dager.
-Vi bør merge eller lukke disse`,
+:warning: * <https://www.github.com/navikt/${repo}|${repo}>* 
+Har totalt <https://www.github.com/navikt/${repo}/pulls|${pulls.length} pull requests>. ${gamle.length} av dem er eldre enn ${antallDager} dager. Vi bør merge eller lukke disse`,
             },
         })
 
@@ -38,24 +36,13 @@ Vi bør merge eller lukke disse`,
                 type: 'section',
                 text: {
                     type: 'mrkdwn',
-                    text: `${numberToSlackEmoji(idx + 1)} *<${pull.html_url}|${pull.title}>*`,
+                    text: `<${pull.user?.avatar_url}|${pull.user?.login}> ${pull.user?.login} <${pull.html_url}|${pull.title}>`,
                 },
-            })
-
-            blocks.push({
-                type: 'context',
-                elements: [
-                    {
-                        type: 'image',
-                        image_url: pull.user?.avatar_url,
-                        alt_text: pull.user?.login,
-                    },
-                    {
-                        type: 'plain_text',
-                        emoji: true,
-                        text: pull.user?.login,
-                    },
-                ],
+                accessory: {
+                    type: 'image',
+                    image_url: pull.user?.avatar_url,
+                    alt_text: pull.user?.login,
+                },
             })
         })
     }
