@@ -41,7 +41,7 @@ Har totalt <https://www.github.com/navikt/${repo}/pulls|${pulls.length} pull req
                         alt_text: pull.user?.login
                     },
                     {
-                        type: 'plain_text',
+                        type: 'mrkdwn',
                         text: `${pull.user?.login} <${pull.html_url}|${pull.title}>`,
                     }
                 ]
