@@ -1,9 +1,6 @@
-import './common/configInit'
-
 import { octokit } from './octokit'
 import { hentRepoer } from './common/hentRepoer'
 import { sendSlackMessage } from './common/slackPosting'
-import { numberToSlackEmoji } from './common/numberToEmoji'
 
 const repoer = hentRepoer()
 let fantAlert = false
@@ -20,23 +17,19 @@ for (const repo of repoer) {
         fantAlert = true
         // eslint-disable-next-line
         const blocks = [] as any[]
-        blocks.push({ type: 'divider' })
         blocks.push({
             type: 'section',
             text: {
                 type: 'mrkdwn',
-                text: `:dependabot: :stop-sign:  * <https://www.github.com/navikt/${repo}|${repo}>*
-Har totalt <https://www.github.com/navikt/${repo}/security/dependabot|${dependabotAlerts.data.length} dependabot alerts>.
-Vi bør fikse eller lukke disse`,
+                text: `:error: *<https://www.github.com/navikt/${repo}|${repo}>* Har totalt <https://www.github.com/navikt/${repo}/security/dependabot|${dependabotAlerts.data.length} dependabot alerts>.`,
             },
         })
         dependabotAlerts.data.map((alert, idx) => {
-            blocks.push({ type: 'divider' })
             blocks.push({
                 type: 'section',
                 text: {
                     type: 'mrkdwn',
-                    text: `${numberToSlackEmoji(idx + 1)} *<${alert.html_url}|${alert.security_advisory.summary}>*`,
+                    text: `*<${alert.html_url}|${alert.security_advisory.summary}>*`,
                 },
             })
         })

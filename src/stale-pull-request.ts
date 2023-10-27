@@ -1,4 +1,3 @@
-import './common/configInit'
 import * as dayjs from 'dayjs'
 
 import { octokit } from './octokit'
@@ -42,7 +41,7 @@ Har totalt <https://www.github.com/navikt/${repo}/pulls|${pulls.length} pull req
                     },
                     {
                         type: 'mrkdwn',
-                        text: `${pull.user?.login} <${pull.html_url}|${pull.title}>`,
+                        text: `${pull.user?.login} <${pull.html_url}|${pull.title}>`
                     }
                 ]
             })
