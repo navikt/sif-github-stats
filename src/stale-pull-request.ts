@@ -18,7 +18,7 @@ for (const repo of repoer) {
             owner: 'navikt',
             repo: repo,
         })
-    ).data.filter((pull) => !pull.draft && pull.user?.login !== 'app/dependabot')
+    ).data.filter((pull) => !pull.draft && pull.user?.login !== 'dependabot[bot]')
     const gamle = pulls.filter((pull) => dayjs().diff(dayjs(pull.created_at), 'day') > antallDager)
     if (gamle.length > 0) {
         blocks.push({
