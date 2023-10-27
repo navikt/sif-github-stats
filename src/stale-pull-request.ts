@@ -31,7 +31,7 @@ Har totalt <https://www.github.com/navikt/${repo}/pulls|${pulls.length} pull req
             },
         })
 
-        gamle.map((pull, idx) => {
+        gamle.map((pull) => {
             blocks.push({
                 type: 'context',
                 elements: [
@@ -39,7 +39,7 @@ Har totalt <https://www.github.com/navikt/${repo}/pulls|${pulls.length} pull req
                         type: 'image',
                         image_url: pull.user?.avatar_url,
                         alt_text: pull.user?.login
-                    }
+                    },
                     {
                         type: 'plain_text',
                         text: `${pull.user?.login} <${pull.html_url}|${pull.title}>`,
