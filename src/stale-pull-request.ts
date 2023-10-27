@@ -33,16 +33,18 @@ Har totalt <https://www.github.com/navikt/${repo}/pulls|${pulls.length} pull req
 
         gamle.map((pull, idx) => {
             blocks.push({
-                type: 'section',
-                text: {
-                    type: 'mrkdwn',
-                    text: `<${pull.user?.avatar_url}|${pull.user?.login}> ${pull.user?.login} <${pull.html_url}|${pull.title}>`,
-                },
-                accessory: {
-                    type: 'image',
-                    image_url: pull.user?.avatar_url,
-                    alt_text: pull.user?.login,
-                },
+                type: 'context',
+                elements: [
+                    {
+                        type: 'image',
+                        image_url: pull.user?.avatar_url,
+                        alt_text: pull.user?.login
+                    }
+                    {
+                        type: 'plain_text',
+                        text: `${pull.user?.login} <${pull.html_url}|${pull.title}>`,
+                    }
+                ]
             })
         })
     }
