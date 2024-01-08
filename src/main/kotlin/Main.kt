@@ -12,7 +12,7 @@ val logger = LoggerFactory.getLogger("Main")
 
 fun main() {
     val applicationContext: ApplicationContext = ApplicationContext.Builder().build()
-    val githubTeams = listOf("k9saksbehandling", "omsorgspenger", "dusseldorf", "pleiepenger")
+    val githubTeams = listOf("k9saksbehandling", "omsorgspenger", "dusseldorf")
     val githubApiUrl = applicationContext.githubApiUrl
 
     val collectorRegistry = CollectorRegistry()
