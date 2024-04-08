@@ -1,7 +1,7 @@
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
-val ktorVersion = "2.3.9"
+val ktorVersion = "2.3.10"
 val logbackVersion = "1.5.3"
 val logbackEncoderVersion = "7.4"
 val micrometerVersion = "1.11.1"
