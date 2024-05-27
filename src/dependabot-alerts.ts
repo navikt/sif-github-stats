@@ -21,9 +21,9 @@ for (const repo of repoer) {
     if (dependabotAlerts.length > 0) {
         fantAlert = true
         const highAndcriticals = dependabotAlerts
-            .filter((alert) => { alert.security_vulnerability.severity == 'critical' || alert.security_vulnerability.severity == 'high'})
+            .filter(alert =>  alert.security_vulnerability.severity == 'critical' || alert.security_vulnerability.severity == 'high')
         const lows = dependabotAlerts
-            .filter((alert) => { alert.security_vulnerability.severity != 'critical' && alert.security_vulnerability.severity != 'high'})
+            .filter(alert => alert.security_vulnerability.severity != 'critical' && alert.security_vulnerability.severity != 'high')
 
         // eslint-disable-next-line
         const blocks = [] as any[]
