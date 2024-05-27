@@ -25,13 +25,15 @@ for (const repo of repoer) {
         const lows = dependabotAlerts
             .filter(alert => alert.security_vulnerability.severity != 'critical' && alert.security_vulnerability.severity != 'high')
 
+        const hasSevere = highAndcriticals.length > 0
+        const hasLow = lows.length > 0
         // eslint-disable-next-line
         const blocks = [] as any[]
         blocks.push({
             type: 'section',
             text: {
                 type: 'mrkdwn',
-                text: `:error: *<https://www.github.com/navikt/${repo}|${repo}>* Har totalt <https://www.github.com/navikt/${repo}/security/dependabot|${highAndcriticals.length} high/critical og ${lows.length} andre dependabot alerts>. ${highAndcriticals.length > 0 ? 'De high/critical:' : ''}`,
+                text: `${hasSevere ? ':error:' : ':warning:' } *<https://www.github.com/navikt/${repo}|${repo}>* Har totalt ${hasSevere ? highAndcriticals.length + ' high/critical ' : ''} ${hasLow ? lows.length + ' andre ' : ''} <https://www.github.com/navikt/${repo}/security/dependabot|dependabot alerts>. ${hasSevere ? 'De high/critical:' : ''}`,
             },
         })
 
