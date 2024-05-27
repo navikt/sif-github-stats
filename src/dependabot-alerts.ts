@@ -33,7 +33,7 @@ for (const repo of repoer) {
             type: 'section',
             text: {
                 type: 'mrkdwn',
-                text: `${hasSevere ? ':error:' : ':warning:' } *<https://www.github.com/navikt/${repo}|${repo}>* Har totalt ${hasSevere ? highAndcriticals.length + ' high/critical ' : ''} ${hasLow ? lows.length + ' andre ' : ''} <https://www.github.com/navikt/${repo}/security/dependabot|dependabot alerts>. ${hasSevere ? 'De high/critical:' : ''}`,
+                text: `${hasSevere ? ':error:' : ':warning:' } *<https://www.github.com/navikt/${repo}|${repo}>* Har totalt ${hasSevere ? highAndcriticals.length + ' high/critical ' : ''}${hasLow ? lows.length + 'andre ' : ''} <https://www.github.com/navikt/${repo}/security/dependabot|dependabot alerts>${hasSevere ? ':' : '.'}`,
             },
         })
 
@@ -42,7 +42,7 @@ for (const repo of repoer) {
                 type: 'section',
                 text: {
                     type: 'mrkdwn',
-                    text: `*<${alert.html_url}|${alert.security_advisory.severity}: ${alert.security_advisory.summary} }>*`,
+                    text: `*<${alert.html_url}|${alert.security_advisory.severity.toUpperCase()}: ${alert.security_advisory.summary} }>*`,
                 },
             })
         })
