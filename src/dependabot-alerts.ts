@@ -7,7 +7,7 @@ let fantAlert = false
 
 for (const repo of repoer) {
     console.log('Henter for repo ' + repo)
-    const dependabotAlerts = await octokit.request('GET /repos/{owner}/{repo}/dependabot/alerts', {
+    const dependabotAlerts = await octokit.request('GET /repos/{owner}/{repo}/dependabot/alerts?severity=high', {
         owner: 'navikt',
         repo: repo,
         state: 'open',
@@ -21,7 +21,7 @@ for (const repo of repoer) {
             type: 'section',
             text: {
                 type: 'mrkdwn',
-                text: `:error: *<https://www.github.com/navikt/${repo}|${repo}>* Har totalt <https://www.github.com/navikt/${repo}/security/dependabot|${dependabotAlerts.data.length} dependabot alerts>.`,
+                text: `:error: *<https://www.github.com/navikt/${repo}|${repo}>* Har totalt <https://www.github.com/navikt/${repo}/security/dependabot|${dependabotAlerts.data.length} kritiske dependabot alerts>.`,
             },
         })
         dependabotAlerts.data.map((alert) => {
