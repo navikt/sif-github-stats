@@ -33,7 +33,7 @@ for (const repo of repoer) {
             type: 'section',
             text: {
                 type: 'mrkdwn',
-                text: `${hasSevere ? ':error:' : ':warning:' } *<https://www.github.com/navikt/${repo}|${repo}>* Har totalt ${hasSevere ? highAndcriticals.length + ' high/critical ' : ''}${hasLow ? lows.length + 'andre ' : ''} <https://www.github.com/navikt/${repo}/security/dependabot|dependabot alerts>${hasSevere ? ':' : '.'}`,
+                text: `${hasSevere ? ':error:' : ':warning:' } *<https://www.github.com/navikt/${repo}|${repo}>* Har totalt ${hasSevere ? highAndcriticals.length + ' high/critical ' : ''}${hasLow ? lows.length + ' andre ' : ''} <https://www.github.com/navikt/${repo}/security/dependabot|dependabot alerts>${hasSevere ? ':' : '.'}`,
             },
         })
 
