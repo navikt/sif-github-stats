@@ -41,35 +41,45 @@ fun main() {
         (it.permissions.push || it.permissions.admin || it.permissions.maintain) && !it.archived
     }.map { it.name }
     logger.info("Filtered out ${repositories.size - teamRepositories.size} repositories")
-
-    val openPullRequests: Map<String, Int> = runBlocking {
-        teamRepositories.associateWith { repository ->
+    val repositoryInfos:List<RepositoryInfo> = runBlocking {
+        teamRepositories.mapNotNull { repository ->
             // Fetch all open pull requests from repository and return size
             try {
-                httpClient.get(githubApiUrl + "repos/navikt/$repository/pulls") {
+                val pullRequests = httpClient.get(githubApiUrl + "repos/navikt/$repository/pulls") {
                     parameter("per_page", "100")
                     parameter("state", "open")
-                }.body<List<PullRequest>>().size
+                }.body<List<PullRequest>>()
+                RepositoryInfo(repository, pullRequests.size, pullRequests.filter { it.user.login == "dependabot[bot]" })
             } catch (e: Exception) {
                 logger.error("Error fetching open pull requests for repository: $repository, Msg: [${e.message}]")
                 null
             }
-        }.filterNot { it.value == null }.mapValues { it.value!! }
+        }
     }
-    logger.info("Received ${openPullRequests.size} repositories with open pull requests")
+    logger.info("Received ${repositoryInfos.size} repositories with open pull requests")
 
-    val gauge = Gauge.build()
+    val totalPrGauge = Gauge.build()
         .name("sif_github_stats_open_prs")
         .labelNames("repository")
         .help("Open Github PRs")
         .register(collectorRegistry)
 
+    val totalDependabotGauge = Gauge.build()
+        .name("sif_github_stats_dependency_updates")
+        .labelNames("repository")
+        .help("Dependencies awaiting merge")
+        .register(collectorRegistry)
+
+
     try {
-        openPullRequests.forEach { (repository, count) ->
-            logger.info("Setting metrics for Repository: $repository with value Open Pull Requests: $count")
-            gauge
-                .labels(repository)
-                .set(count.toDouble())
+        repositoryInfos.forEach {
+            logger.info("Setting metrics for Repository: ${it.repository} with value Open Pull Requests: ${it.openPRs}")
+            totalPrGauge
+                .labels(it.repository)
+                .set(it.openPRs.toDouble())
+            totalDependabotGauge
+                .labels(it.repository)
+                .set(it.openDependenciesSum().toDouble())
         }
     } finally {
         jobTimer.setDuration()
@@ -81,9 +91,38 @@ fun main() {
     logger.info("Finished job successfully, exiting")
 }
 
+data class RepositoryInfo(
+    val repository: String,
+    val openPRs: Int,
+    val dependabotPrs: List<PullRequest>
+) {
+    companion object {
+        private val dependabotGroupUpdatesRegEx =  "(\\d+)\\s+updates?$".toRegex()
+        private val dependabotGroupRegEx =  ".+group.+directory.+updates?$".toRegex()
+    }
+
+    fun openDependenciesSum(): Int {
+        val prTitles = dependabotPrs.map { it.title }.toSet()
+        val groupTitles = prTitles.filter { dependabotGroupRegEx.matches(it) }.toSet()
+        val groupDependencySums =
+            groupTitles.sumOf { dependabotGroupUpdatesRegEx.find(it)?.groups?.lastOrNull()?.value?.toInt() ?: 0 }
+
+        return prTitles.minus(groupTitles).size + groupDependencySums
+    }
+}
+
 @Serializable
 data class PullRequest(
-    val updated_at: String
+    val updated_at: String,
+    val title: String,
+    val user: User
+)
+
+@Serializable
+data class User(
+    val login: String,
+    val type: String
+
 )
 
 @Serializable
