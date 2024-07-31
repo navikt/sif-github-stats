@@ -16,3 +16,4 @@ jobs:
       security-events: write
     with:
       branch: main
+      java-version: 21
