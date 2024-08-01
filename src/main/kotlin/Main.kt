@@ -88,7 +88,7 @@ private fun findTeamRepositories(
     githubTeams: List<String>,
     httpClient: HttpClient,
     githubApiUrl: String
-): List<String> {
+): Set<String> {
     val repositories = runBlocking {
         githubTeams.flatMap { httpClient.get(githubApiUrl + "orgs/navikt/teams/$it/repos") {
                 parameter("per_page", "100")
@@ -97,18 +97,19 @@ private fun findTeamRepositories(
     }
     logger.info("Found ${repositories.size} repositories for team(s) ${githubTeams.joinToString { it }} }}")
 
-    // Filter out archived repos & repos that doesn't belong to the team
+    // Filter out archived repos & repos that doesn't belong to the team and duplicates
     val teamRepositories = repositories.filter {
         (it.permissions.push || it.permissions.admin || it.permissions.maintain) && !it.archived
-    }.map { it.name }
+    }.map { it.name }.toSet()
     logger.info("Filtered out ${repositories.size - teamRepositories.size} repositories")
+
     return teamRepositories
 }
 
 private fun findRepositoryInfo(
     httpClient: HttpClient,
     githubApiUrl: String,
-    teamRepositories: List<String>
+    teamRepositories: Set<String>
 ): List<RepositoryInfo> {
     val repositoryInfo: List<RepositoryInfo> = runBlocking {
         teamRepositories.mapNotNull { repository ->
