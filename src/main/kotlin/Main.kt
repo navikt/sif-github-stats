@@ -1,5 +1,6 @@
 package no.nav.github_stats
 
+import io.ktor.client.*
 import io.ktor.client.call.*
 import io.ktor.client.request.*
 import io.prometheus.client.CollectorRegistry
@@ -24,39 +25,9 @@ fun main() {
 
     val httpClient = applicationContext.httpClient
 
-    val repositories: MutableSet<OrgRepository> = mutableSetOf()
+    val teamRepositories = findTeamRepositories(githubTeams, httpClient, githubApiUrl)
 
-    runBlocking {
-        githubTeams.forEach { team ->
-            val repos: List<OrgRepository> = httpClient.get(githubApiUrl + "orgs/navikt/teams/$team/repos") {
-                parameter("per_page", "100")
-            }.body()
-            repositories.addAll(repos)
-        }
-    }
-    logger.info("Found ${repositories.size} repositories for team(s) ${githubTeams.joinToString { it }} }}")
-
-    // Filter out archived repos & repos that doesn't belong to the team
-    val teamRepositories = repositories.filter {
-        (it.permissions.push || it.permissions.admin || it.permissions.maintain) && !it.archived
-    }.map { it.name }
-    logger.info("Filtered out ${repositories.size - teamRepositories.size} repositories")
-    val repositoryInfos:List<RepositoryInfo> = runBlocking {
-        teamRepositories.mapNotNull { repository ->
-            // Fetch all open pull requests from repository and return size
-            try {
-                val pullRequests = httpClient.get(githubApiUrl + "repos/navikt/$repository/pulls") {
-                    parameter("per_page", "100")
-                    parameter("state", "open")
-                }.body<List<PullRequest>>()
-                RepositoryInfo(repository, pullRequests.size, pullRequests.filter { it.user.login == "dependabot[bot]" })
-            } catch (e: Exception) {
-                logger.error("Error fetching open pull requests for repository: $repository, Msg: [${e.message}]")
-                null
-            }
-        }
-    }
-    logger.info("Received ${repositoryInfos.size} repositories with open pull requests")
+    val repositoryInfos: List<RepositoryInfo> = findRepositoryInfo(httpClient, githubApiUrl, teamRepositories)
 
     val totalPrGauge = Gauge.build()
         .name("sif_github_stats_open_prs")
@@ -70,16 +41,38 @@ fun main() {
         .help("Dependencies awaiting merge")
         .register(collectorRegistry)
 
+    val totalCriticalGauge = Gauge.build()
+        .name("sif_github_stats_dependabot_critical")
+        .labelNames("repository")
+        .help("Dependabot Critical Alerts")
+        .register(collectorRegistry)
+
+    val totalHighGauge = Gauge.build()
+        .name("sif_github_stats_dependabot_high")
+        .labelNames("repository")
+        .help("Dependabot High Alerts")
+        .register(collectorRegistry)
+
 
     try {
         repositoryInfos.forEach {
-            logger.info("Setting metrics for Repository: ${it.repository} with value Open Pull Requests: ${it.openPRs}")
+            logger.info("Setting metrics for Repository: $it")
             totalPrGauge
                 .labels(it.repository)
                 .set(it.openPRs.toDouble())
+
             totalDependabotGauge
                 .labels(it.repository)
-                .set(it.openDependenciesSum().toDouble())
+                .set(it.openDependenciesSum.toDouble())
+
+            totalCriticalGauge
+                .labels(it.repository)
+                .set(it.criticalAlertsSum.toDouble())
+
+            totalHighGauge
+                .labels(it.repository)
+                .set(it.highAlertsSum.toDouble())
+
         }
     } finally {
         jobTimer.setDuration()
@@ -91,24 +84,95 @@ fun main() {
     logger.info("Finished job successfully, exiting")
 }
 
+private fun findTeamRepositories(
+    githubTeams: List<String>,
+    httpClient: HttpClient,
+    githubApiUrl: String
+): List<String> {
+    val repositories = runBlocking {
+        githubTeams.flatMap { httpClient.get(githubApiUrl + "orgs/navikt/teams/$it/repos") {
+                parameter("per_page", "100")
+            }.body<List<OrgRepository>>()
+        }
+    }
+    logger.info("Found ${repositories.size} repositories for team(s) ${githubTeams.joinToString { it }} }}")
+
+    // Filter out archived repos & repos that doesn't belong to the team
+    val teamRepositories = repositories.filter {
+        (it.permissions.push || it.permissions.admin || it.permissions.maintain) && !it.archived
+    }.map { it.name }
+    logger.info("Filtered out ${repositories.size - teamRepositories.size} repositories")
+    return teamRepositories
+}
+
+private fun findRepositoryInfo(
+    httpClient: HttpClient,
+    githubApiUrl: String,
+    teamRepositories: List<String>
+): List<RepositoryInfo> {
+    val repositoryInfo: List<RepositoryInfo> = runBlocking {
+        teamRepositories.mapNotNull { repository ->
+            // Fetch all open pull requests from repository and find total size and dependabots PRs
+            try {
+                val pullRequests = httpClient.get(githubApiUrl + "repos/navikt/$repository/pulls") {
+                    parameter("per_page", "100")
+                    parameter("state", "open")
+                }.body<List<PullRequest>>()
+                RepositoryInfo(
+                    repository,
+                    pullRequests.size,
+                    pullRequests.filter { it.user.login == "dependabot[bot]" })
+            } catch (e: Exception) {
+                logger.error("Error fetching open pull requests for repository: $repository, Msg: [${e.message}]")
+                null
+            }
+        }
+    }
+
+    logger.info("Received ${repositoryInfo.size} repositories with open pull requests")
+
+    runBlocking {
+            repositoryInfo.forEach {
+                try {
+                    it.dependabotAlerts = httpClient.get(githubApiUrl + "repos/navikt/${it.repository}/dependabot/alerts") {
+                        parameter("per_page", "100")
+                        parameter("state", "open")
+                    }.body<List<DependabotAlert>>()
+                } catch (e: Exception) {
+                    logger.error("Error fetching open dependabot alerts for repository: ${it.repository}, Msg: [${e.message}]")
+                }
+            }
+    }
+
+    return repositoryInfo
+}
+
 data class RepositoryInfo(
     val repository: String,
     val openPRs: Int,
-    val dependabotPrs: List<PullRequest>
+    val dependabotPrs: List<PullRequest>,
+    var dependabotAlerts: List<DependabotAlert> = emptyList()
 ) {
     companion object {
         private val dependabotGroupUpdatesRegEx =  "(\\d+)\\s+updates?$".toRegex()
         private val dependabotGroupRegEx =  ".+group.+directory.+updates?$".toRegex()
     }
 
-    fun openDependenciesSum(): Int {
+    val openDependenciesSum by lazy {
         val prTitles = dependabotPrs.map { it.title }.toSet()
         val groupTitles = prTitles.filter { dependabotGroupRegEx.matches(it) }.toSet()
         val groupDependencySums =
             groupTitles.sumOf { dependabotGroupUpdatesRegEx.find(it)?.groups?.lastOrNull()?.value?.toInt() ?: 0 }
-
-        return prTitles.minus(groupTitles).size + groupDependencySums
+        prTitles.minus(groupTitles).size + groupDependencySums
     }
+    val criticalAlertsSum by lazy { dependabotAlerts.filter { it.security_vulnerability.severity == "critical" }.size }
+    val highAlertsSum by lazy { dependabotAlerts.filter { it.security_vulnerability.severity == "high" }.size }
+
+    override fun toString(): String {
+        return "RepositoryInfo(repository='$repository', openPRs=$openPRs, openDependenciesSum=$openDependenciesSum, criticalAlertsSum=$criticalAlertsSum, highAlertsSum=$highAlertsSum)"
+    }
+
+
 }
 
 @Serializable
@@ -123,6 +187,16 @@ data class User(
     val login: String,
     val type: String
 
+)
+
+@Serializable
+data class DependabotAlert(
+   val security_vulnerability: SecurityVulnerability,
+)
+
+@Serializable
+data class SecurityVulnerability(
+    val severity: String
 )
 
 @Serializable
