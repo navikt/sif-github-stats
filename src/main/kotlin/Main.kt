@@ -53,6 +53,20 @@ fun main() {
         .help("Dependabot High Alerts")
         .register(collectorRegistry)
 
+    val totalSecretAlertGauge = Gauge.build()
+        .name("sif_github_stats_secret_alerts")
+        .labelNames("repository")
+        .help("Exposed secrets alerts")
+        .register(collectorRegistry)
+
+    val totalCodeScanningGauge = Gauge.build()
+        .name("sif_github_stats__code_scanning_criticals")
+        .labelNames("repository")
+        .help("Code scanning critical alerts")
+        .register(collectorRegistry)
+
+
+
 
     try {
         repositoryInfos.forEach {
@@ -72,6 +86,14 @@ fun main() {
             totalHighGauge
                 .labels(it.repository)
                 .set(it.highAlertsSum.toDouble())
+
+            totalSecretAlertGauge
+                .labels(it.repository)
+                .set(it.secretAlerts.toDouble())
+
+            totalCodeScanningGauge
+                .labels(it.repository)
+                .set(it.codeScanningCriticalAlerts.toDouble())
 
         }
     } finally {
@@ -145,6 +167,40 @@ private fun findRepositoryInfo(
             }
     }
 
+    logger.info("Done getting dependabot alerts for ${repositoryInfo.size} repositories")
+
+    runBlocking {
+        repositoryInfo.forEach {
+            try {
+                it.secretAlerts = httpClient.get(githubApiUrl + "repos/navikt/${it.repository}/secret-scanning/alerts") {
+                    parameter("per_page", "100")
+                    parameter("state", "open")
+                }.body<List<SecretAlert>>().size
+            } catch (e: Exception) {
+                logger.error("Error fetching secret alerts for repository: ${it.repository}, Msg: [${e.message}]")
+            }
+        }
+    }
+
+    logger.info("Done getting secret alerts for ${repositoryInfo.size} repositories")
+
+
+    runBlocking {
+        repositoryInfo.forEach {
+            try {
+                it.codeScanningCriticalAlerts = httpClient.get(githubApiUrl + "repos/navikt/${it.repository}/code-scanning/alerts") {
+                    parameter("per_page", "100")
+                    parameter("state", "open")
+                    parameter("severity", "critical")
+                }.body<List<CodescanningAlert>>().size
+            } catch (e: Exception) {
+                logger.error("Error fetching code scanning alerts for repository: ${it.repository}, Msg: [${e.message}]")
+            }
+        }
+    }
+
+    logger.info("Done getting code scanning alerts for ${repositoryInfo.size} repositories")
+
     return repositoryInfo
 }
 
@@ -152,7 +208,9 @@ data class RepositoryInfo(
     val repository: String,
     val openPRs: Int,
     val dependabotPrs: List<PullRequest>,
-    var dependabotAlerts: List<DependabotAlert> = emptyList()
+    var dependabotAlerts: List<DependabotAlert> = emptyList(),
+    var secretAlerts: Int = 0,
+    var codeScanningCriticalAlerts: Int = 0
 ) {
     companion object {
         private val dependabotGroupUpdatesRegEx =  "(\\d+)\\s+updates?$".toRegex()
@@ -168,13 +226,14 @@ data class RepositoryInfo(
     }
     val criticalAlertsSum by lazy { dependabotAlerts.filter { it.security_vulnerability.severity == "critical" }.size }
     val highAlertsSum by lazy { dependabotAlerts.filter { it.security_vulnerability.severity == "high" }.size }
-
     override fun toString(): String {
-        return "RepositoryInfo(repository='$repository', openPRs=$openPRs, openDependenciesSum=$openDependenciesSum, criticalAlertsSum=$criticalAlertsSum, highAlertsSum=$highAlertsSum)"
+        return "RepositoryInfo(repository='$repository', openPRs=$openPRs, secretAlerts=$secretAlerts, codeScanningCriticalAlerts=$codeScanningCriticalAlerts, openDependenciesSum=$openDependenciesSum, criticalAlertsSum=$criticalAlertsSum, highAlertsSum=$highAlertsSum)"
     }
 
 
 }
+
+
 
 @Serializable
 data class PullRequest(
@@ -194,6 +253,13 @@ data class User(
 data class DependabotAlert(
    val security_vulnerability: SecurityVulnerability,
 )
+
+@Serializable
+class SecretAlert()
+
+@Serializable
+class CodescanningAlert()
+
 
 @Serializable
 data class SecurityVulnerability(
