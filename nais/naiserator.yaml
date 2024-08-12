@@ -8,6 +8,7 @@ metadata:
 spec:
   image: "{{ image }}"
   schedule: "0 10,15,23 * * *"
+  timeZone: Europe/Oslo
   failedJobsHistoryLimit: 1
   successfulJobsHistoryLimit: 1
   backoffLimit: 1
