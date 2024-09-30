@@ -99,9 +99,14 @@ fun main() {
     } finally {
         jobTimer.setDuration()
         logger.info("Pushing metrics")
-        applicationContext.pushGateway
-            .push(collectorRegistry, "sif-github-stats")
+        if (System.getenv()["PUSH_GATEWAY_ADDRESS"] != "dummy") {
+            applicationContext.pushGateway
+                .push(collectorRegistry, "sif-github-stats")
+        }
+
     }
+
+    generateLogReport(repositoryInfos)
 
     logger.info("Finished job successfully, exiting")
 }
@@ -231,6 +236,35 @@ data class RepositoryInfo(
     }
 
 
+}
+
+fun generateLogReport(repositoryInfos: List<RepositoryInfo>) {
+    val dependabot = StringBuilder("*Mange dependabots*")
+    repositoryInfos
+        .filter { it.openDependenciesSum > 9 }
+        .sortedByDescending { it.openDependenciesSum }
+        .forEach { dependabot.appendLine("- ${it.repository} ${it.openDependenciesSum}") }
+
+    val critical = StringBuilder("*Kritisk dependabot security alert:*")
+    repositoryInfos
+        .filter { it.criticalAlertsSum > 0 }
+        .sortedByDescending { it.criticalAlertsSum }
+        .forEach { critical.appendLine("- ${it.repository} ${it.criticalAlertsSum}") }
+
+    val secret = StringBuilder("*Secrets alerts:*")
+    repositoryInfos
+        .filter { it.secretAlerts > 0 }
+        .sortedByDescending { it.secretAlerts }
+        .forEach { secret.appendLine("- ${it.repository} ${it.secretAlerts}") }
+
+    val codescanning = StringBuilder("*Kritiske kodescanning varsler:*")
+    repositoryInfos
+        .filter { it.codeScanningCriticalAlerts > 0 }
+        .sortedByDescending { it.codeScanningCriticalAlerts }
+        .forEach { codescanning.appendLine("- ${it.repository} ${it.codeScanningCriticalAlerts}") }
+
+    logger.info("Rapport:")
+    logger.info("$dependabot \n $critical \n $codescanning \n $secret")
 }
 
 
