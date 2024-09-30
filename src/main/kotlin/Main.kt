@@ -117,7 +117,8 @@ private fun findTeamRepositories(
     githubApiUrl: String
 ): Set<String> {
     val repositories = runBlocking {
-        githubTeams.flatMap { httpClient.get(githubApiUrl + "orgs/navikt/teams/$it/repos") {
+        githubTeams.flatMap {
+            httpClient.get(githubApiUrl + "orgs/navikt/teams/$it/repos") {
                 parameter("per_page", "100")
             }.body<List<OrgRepository>>()
         }
@@ -160,16 +161,16 @@ private fun findRepositoryInfo(
     logger.info("Received ${repositoryInfo.size} repositories with open pull requests")
 
     runBlocking {
-            repositoryInfo.forEach {
-                try {
-                    it.dependabotAlerts = httpClient.get(githubApiUrl + "repos/navikt/${it.repository}/dependabot/alerts") {
-                        parameter("per_page", "100")
-                        parameter("state", "open")
-                    }.body<List<DependabotAlert>>()
-                } catch (e: Exception) {
-                    logger.error("Error fetching open dependabot alerts for repository: ${it.repository}, Msg: [${e.message}]")
-                }
+        repositoryInfo.forEach {
+            try {
+                it.dependabotAlerts = httpClient.get(githubApiUrl + "repos/navikt/${it.repository}/dependabot/alerts") {
+                    parameter("per_page", "100")
+                    parameter("state", "open")
+                }.body<List<DependabotAlert>>()
+            } catch (e: Exception) {
+                logger.error("Error fetching open dependabot alerts for repository: ${it.repository}, Msg: [${e.message}]")
             }
+        }
     }
 
     logger.info("Done getting dependabot alerts for ${repositoryInfo.size} repositories")
@@ -177,10 +178,11 @@ private fun findRepositoryInfo(
     runBlocking {
         repositoryInfo.forEach {
             try {
-                it.secretAlerts = httpClient.get(githubApiUrl + "repos/navikt/${it.repository}/secret-scanning/alerts") {
-                    parameter("per_page", "100")
-                    parameter("state", "open")
-                }.body<List<SecretAlert>>().size
+                it.secretAlerts =
+                    httpClient.get(githubApiUrl + "repos/navikt/${it.repository}/secret-scanning/alerts") {
+                        parameter("per_page", "100")
+                        parameter("state", "open")
+                    }.body<List<SecretAlert>>().size
             } catch (e: Exception) {
                 logger.error("Error fetching secret alerts for repository: ${it.repository}, Msg: [${e.message}]")
             }
@@ -193,11 +195,12 @@ private fun findRepositoryInfo(
     runBlocking {
         repositoryInfo.forEach {
             try {
-                it.codeScanningCriticalAlerts = httpClient.get(githubApiUrl + "repos/navikt/${it.repository}/code-scanning/alerts") {
-                    parameter("per_page", "100")
-                    parameter("state", "open")
-                    parameter("severity", "critical")
-                }.body<List<CodescanningAlert>>().size
+                it.codeScanningCriticalAlerts =
+                    httpClient.get(githubApiUrl + "repos/navikt/${it.repository}/code-scanning/alerts") {
+                        parameter("per_page", "100")
+                        parameter("state", "open")
+                        parameter("severity", "critical")
+                    }.body<List<CodescanningAlert>>().size
             } catch (e: Exception) {
                 logger.error("Error fetching code scanning alerts for repository: ${it.repository}, Msg: [${e.message}]")
             }
@@ -218,8 +221,8 @@ data class RepositoryInfo(
     var codeScanningCriticalAlerts: Int = 0
 ) {
     companion object {
-        private val dependabotGroupUpdatesRegEx =  "(\\d+)\\s+updates?$".toRegex()
-        private val dependabotGroupRegEx =  ".+group.+directory.+updates?$".toRegex()
+        private val dependabotGroupUpdatesRegEx = "(\\d+)\\s+updates?$".toRegex()
+        private val dependabotGroupRegEx = ".+group.+directory.+updates?$".toRegex()
     }
 
     val openDependenciesSum by lazy {
@@ -243,30 +246,33 @@ fun generateLogReport(repositoryInfos: List<RepositoryInfo>) {
     repositoryInfos
         .filter { it.openDependenciesSum > 9 }
         .sortedByDescending { it.openDependenciesSum }
-        .forEach { dependabot.appendLine("- ${it.repository} ${it.openDependenciesSum}") }
+        .forEach { dependabot.appendLine(makeLine(it, it.openDependenciesSum, "/pulls")) }
 
     val critical = StringBuilder("*Kritisk dependabot security alert:*")
     repositoryInfos
         .filter { it.criticalAlertsSum > 0 }
         .sortedByDescending { it.criticalAlertsSum }
-        .forEach { critical.appendLine("- ${it.repository} ${it.criticalAlertsSum}") }
+        .forEach { critical.appendLine(makeLine(it, it.criticalAlertsSum, "/security/dependabot")) }
 
     val secret = StringBuilder("*Secrets alerts:*")
     repositoryInfos
         .filter { it.secretAlerts > 0 }
         .sortedByDescending { it.secretAlerts }
-        .forEach { secret.appendLine("- ${it.repository} ${it.secretAlerts}") }
+        .forEach { secret.appendLine(makeLine(it, it.secretAlerts, "/security/secret-scanning")) }
 
     val codescanning = StringBuilder("*Kritiske kodescanning varsler:*")
     repositoryInfos
         .filter { it.codeScanningCriticalAlerts > 0 }
         .sortedByDescending { it.codeScanningCriticalAlerts }
-        .forEach { codescanning.appendLine("- ${it.repository} ${it.codeScanningCriticalAlerts}") }
+        .forEach { codescanning.appendLine(makeLine(it, it.codeScanningCriticalAlerts, "/security/code-scanning")) }
 
     logger.info("Rapport:")
     logger.info("$dependabot \n $critical \n $codescanning \n $secret")
 }
 
+private fun makeLine(repo: RepositoryInfo, amount: Int, githubPostfix: String): String {
+    return "- [${repo.repository}](https://github.com/navikt/${repo.repository}$githubPostfix) $amount"
+}
 
 
 @Serializable
@@ -285,7 +291,7 @@ data class User(
 
 @Serializable
 data class DependabotAlert(
-   val security_vulnerability: SecurityVulnerability,
+    val security_vulnerability: SecurityVulnerability,
 )
 
 @Serializable
