@@ -2,15 +2,15 @@ import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 val ktorVersion = "2.3.12"
-val logbackVersion = "1.5.7"
+val logbackVersion = "1.5.8"
 val logbackEncoderVersion = "8.0"
 val micrometerVersion = "1.11.1"
 val prometheusVersion = "0.16.0"
 
 plugins {
-    kotlin("jvm") version "2.0.10"
+    kotlin("jvm") version "2.0.20"
     id("com.github.johnrengelman.shadow") version "8.1.1"
-    id("org.jetbrains.kotlin.plugin.serialization") version "2.0.10"
+    id("org.jetbrains.kotlin.plugin.serialization") version "2.0.20"
 }
 
 group = "no.nav"
