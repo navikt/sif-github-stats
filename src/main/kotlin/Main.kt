@@ -266,7 +266,7 @@ data class RepositoryInfo(
     val criticalAlertsSum by lazy { dependabotAlerts.filter { it.security_vulnerability.severity == "critical" }.size }
     val highAlertsSum by lazy { dependabotAlerts.filter { it.security_vulnerability.severity == "high" }.size }
     override fun toString(): String {
-        return "RepositoryInfo(repository='$repository', openPRs=$openPRs, secretAlerts=$secretAlerts, codeScanningCriticalAlerts=$codeScanningCriticalAlerts, openDependenciesSum=$openDependenciesSum, criticalAlertsSum=$criticalAlertsSum, highAlertsSum=$highAlertsSum)"
+        return "RepositoryInfo(repository='$repository', openPRs=$openPRs, secretAlerts=$secretAlerts, codeScanningCriticalAlerts=$codeScanningCriticalAlerts, openDependenciesSum=$openDependenciesSum, criticalAlertsSum=$criticalAlertsSum, highAlertsSum=$highAlertsSum, daysSinceLatestCommit=${daysSinceLatestCommit})"
     }
     val daysSinceLatestCommit by lazy {
         require(latestCommit != null) { "latestCommit must be set" }
