@@ -8,6 +8,9 @@ import io.prometheus.client.Gauge
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.Serializable
 import org.slf4j.LoggerFactory
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.time.temporal.ChronoUnit
 
 val logger = LoggerFactory.getLogger("Main")
 
@@ -65,6 +68,12 @@ fun main() {
         .help("Code scanning critical alerts")
         .register(collectorRegistry)
 
+    val totalLastCommitDaysGauge = Gauge.build()
+        .name("sif_github_stats_last_commit_days")
+        .labelNames("repository")
+        .help("Days since last commit")
+        .register(collectorRegistry)
+
 
 
 
@@ -94,6 +103,11 @@ fun main() {
             totalCodeScanningGauge
                 .labels(it.repository)
                 .set(it.codeScanningCriticalAlerts.toDouble())
+
+            totalLastCommitDaysGauge
+                .labels(it.repository)
+                .set(it.daysSinceLatestCommit.toDouble())
+
 
         }
     } finally {
@@ -175,6 +189,22 @@ private fun findRepositoryInfo(
 
     logger.info("Done getting dependabot alerts for ${repositoryInfo.size} repositories")
 
+
+    runBlocking {
+        repositoryInfo.forEach {
+            try {
+                it.latestCommit = httpClient.get(githubApiUrl + "repos/navikt/${it.repository}/commits") {
+                    parameter("per_page", "1")
+                }.body<List<Commit>>().firstOrNull() ?: throw IllegalStateException("No commits found")
+            } catch (e: Exception) {
+                logger.error("Error fetching latest commit for repository: ${it.repository}, Msg: [${e.message}]")
+            }
+        }
+    }
+
+    logger.info("Done getting latest commit for ${repositoryInfo.size} repositories")
+
+
     runBlocking {
         repositoryInfo.forEach {
             try {
@@ -218,7 +248,8 @@ data class RepositoryInfo(
     val dependabotPrs: List<PullRequest>,
     var dependabotAlerts: List<DependabotAlert> = emptyList(),
     var secretAlerts: Int = 0,
-    var codeScanningCriticalAlerts: Int = 0
+    var codeScanningCriticalAlerts: Int = 0,
+    var latestCommit: Commit? = null
 ) {
     companion object {
         private val dependabotGroupUpdatesRegEx = "(\\d+)\\s+updates?$".toRegex()
@@ -236,6 +267,11 @@ data class RepositoryInfo(
     val highAlertsSum by lazy { dependabotAlerts.filter { it.security_vulnerability.severity == "high" }.size }
     override fun toString(): String {
         return "RepositoryInfo(repository='$repository', openPRs=$openPRs, secretAlerts=$secretAlerts, codeScanningCriticalAlerts=$codeScanningCriticalAlerts, openDependenciesSum=$openDependenciesSum, criticalAlertsSum=$criticalAlertsSum, highAlertsSum=$highAlertsSum)"
+    }
+    val daysSinceLatestCommit by lazy {
+        require(latestCommit != null) { "latestCommit must be set" }
+        val commitDate = LocalDate.parse(latestCommit!!.commit.author.date, DateTimeFormatter.ISO_DATE_TIME)
+        ChronoUnit.DAYS.between(commitDate, LocalDate.now())
     }
 
 
@@ -266,8 +302,15 @@ fun generateLogReport(repositoryInfos: List<RepositoryInfo>) {
         .sortedByDescending { it.codeScanningCriticalAlerts }
         .forEach { codescanning.appendLine(makeLine(it, it.codeScanningCriticalAlerts, "/security/code-scanning")) }
 
+    val oldCommits = StringBuilder("*Repoer med commits eldre enn 50 dager:*")
+    repositoryInfos
+        .filter { it.daysSinceLatestCommit > 50 }
+        .sortedByDescending { it.daysSinceLatestCommit }
+        .forEach { oldCommits.appendLine(makeLine(it, it.daysSinceLatestCommit.toInt(), "")) }
+
+
     logger.info("Rapport:")
-    logger.info("$dependabot \n $critical \n $codescanning \n $secret")
+    logger.info("$dependabot \n $critical \n $codescanning \n $secret \n $oldCommits")
 }
 
 private fun makeLine(repo: RepositoryInfo, amount: Int, githubPostfix: String): String {
@@ -321,4 +364,19 @@ data class Permissions(
     val push: Boolean,
     val triage: Boolean,
     val pull: Boolean
+)
+
+@Serializable
+data class Commit(
+    val commit: CommitDetails
+)
+
+@Serializable
+data class CommitDetails(
+    val author: CommitAuthor
+)
+
+@Serializable
+data class CommitAuthor(
+    val date: String
 )
