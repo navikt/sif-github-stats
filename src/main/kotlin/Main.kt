@@ -30,7 +30,11 @@ fun main() {
 
     val teamRepositories = findTeamRepositories(githubTeams, httpClient, githubApiUrl)
 
-    val repositoryInfos: List<RepositoryInfo> = findRepositoryInfo(httpClient, githubApiUrl, teamRepositories)
+    teamRepositories.forEach {
+        println("$it")
+    }
+    return
+    val repositoryInfos: List<RepositoryInfo> = findRepositoryInfo(httpClient, githubApiUrl, setOf(teamRepositories.find { it == "k9-personopplysninger" }!!))
 
     val totalPrGauge = Gauge.build()
         .name("sif_github_stats_open_prs")
