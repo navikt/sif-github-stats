@@ -3,9 +3,18 @@ sif-github-stats
 
 Naisjob som henter statistikk fra github og pusher til prometheus.
 
-# Komme i gang
+Bruker nais/google secret  med navnet `sif-stats-github-pat` for k9saksbehandling.
 
-Lagre PAT for github i [google secrets manager](https://cloud.google.com/secret-manager) med navnet `sif-stats-github-pat`
+Secreten har 1 års varighet og trenger permissions: 
+
+```
+repo 
+  repo:statusAccess 
+  repo_deployment
+  public_repo
+  security_events
+read:org
+```
 
 ---
 
