@@ -49,7 +49,7 @@ jobs:
     needs: [ test, build ]
     steps:
       - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # ratchet:actions/checkout@v4
-      - uses: nais/deploy/actions/deploy@56e14061f2a8437bd9119e7b8f92749a3b288db1
+      - uses: nais/deploy/actions/deploy@33c53f5b87d0746093a7a7ab4b9fa853e0e53bdc
         env:
           RESOURCE: nais/naiserator.yaml
           CLUSTER: prod-gcp
