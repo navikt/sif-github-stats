@@ -29,4 +29,4 @@ jobs:
         env:
           CLUSTER: prod-fss # Replace
           RESOURCE: influx-export/nais/naiserator.yaml # same list as in changed-files step above
-          WORKLOAD_IMAGE: ${{ steps.docker-build-push.outputs.image }}
+          VAR: image=${{ steps.docker-build-push.outputs.image }}
