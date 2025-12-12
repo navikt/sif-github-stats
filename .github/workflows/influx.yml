@@ -22,6 +22,9 @@ jobs:
         id: docker-build-push
         with:
           dockerfile: influx-export/Dockerfile
+          push_image: 'false'
+          docker_context: 'influx-export'
+          image_suf fix: '-influx'
           team: k9saksbehandling
       - name: Deploy to Nais
         uses: nais/deploy/actions/deploy@v2
