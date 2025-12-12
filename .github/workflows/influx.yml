@@ -1,0 +1,31 @@
+name: influx
+on:
+  push:
+    branches:
+      - influx-export
+  workflow_dispatch:
+
+jobs:
+  build_and_deploy:
+    name: Build, push and deploy
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Fetch all history for what-changed action
+      - name: Build and push image and SBOM to OCI registry
+        uses: nais/docker-build-push@v0
+        id: docker-build-push
+        with:
+          dockerfile: influx-export/Dockerfile
+          team: k9saksbehandling
+      - name: Deploy to Nais
+        uses: nais/deploy/actions/deploy@v2
+        env:
+          CLUSTER: prod-fss # Replace
+          RESOURCE: influx-export/nais/naiserator.yaml # same list as in changed-files step above
+          WORKLOAD_IMAGE: ${{ steps.docker-build-push.outputs.image }}
