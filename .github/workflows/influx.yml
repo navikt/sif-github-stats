@@ -23,7 +23,7 @@ jobs:
         with:
           dockerfile: influx-export/Dockerfile
           docker_context: 'influx-export'
-          image_suf fix: '-influx'
+          image_suffix: '-influx'
           team: k9saksbehandling
       - name: Deploy to Nais
         uses: nais/deploy/actions/deploy@v2
