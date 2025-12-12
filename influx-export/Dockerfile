@@ -4,7 +4,7 @@ RUN apt-get update && \
     apt-get install -y curl tar bash
 
 
-RUN mkdir -p /backup
+RUN mkdir -p /backup && chmod 777 /backup
 WORKDIR /backup
 
 
