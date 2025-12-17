@@ -11,7 +11,8 @@ WORKDIR /backup
 RUN curl -O \
     https://dl.influxdata.com/influxdb/releases/influxdb2-client-2.7.5-linux-amd64.tar.gz && \
     tar xvzf influxdb2-client-2.7.5-linux-amd64.tar.gz && \
-    chmod +x influx && \
+    cp ./influx /usr/local/bin/ && \
+    chmod +x /usr/local/bin/influx && \
     chmod -R 777 /backup
 
 
