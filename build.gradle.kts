@@ -8,9 +8,9 @@ val micrometerVersion = "1.11.1"
 val prometheusVersion = "0.16.0"
 
 plugins {
-    kotlin("jvm") version "2.1.21"
+    kotlin("jvm") version "2.3.0"
     id("com.github.johnrengelman.shadow") version "8.1.1"
-    id("org.jetbrains.kotlin.plugin.serialization") version "2.1.21"
+    id("org.jetbrains.kotlin.plugin.serialization") version "2.3.0"
 }
 
 group = "no.nav"
