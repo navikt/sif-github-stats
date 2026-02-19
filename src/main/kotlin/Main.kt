@@ -20,18 +20,22 @@ fun main() {
     val githubApiUrl = applicationContext.githubApiUrl
 
     val collectorRegistry = CollectorRegistry()
-    val jobTimer = Gauge.build()
-        .name("sif_github_stats_last_job_timer")
-        .help("Time it took to run last job")
-        .register(collectorRegistry)
-        .startTimer()
 
     val httpClient = applicationContext.httpClient
 
     val teamRepositories = findTeamRepositories(githubTeams, httpClient, githubApiUrl)
 
+    logger.info("Alle repositores: ${teamRepositories.map { it }}")
+
     val repositoryInfos: List<RepositoryInfo> = findRepositoryInfo(httpClient, githubApiUrl, teamRepositories)
 
+
+
+    val jobTimer = Gauge.build()
+        .name("sif_github_stats_last_job_timer")
+        .help("Time it took to run last job")
+        .register(collectorRegistry)
+        .startTimer()
     val totalPrGauge = Gauge.build()
         .name("sif_github_stats_open_prs")
         .labelNames("repository")
@@ -130,14 +134,25 @@ private fun findTeamRepositories(
     httpClient: HttpClient,
     githubApiUrl: String
 ): Set<String> {
-    val repositories = runBlocking {
-        githubTeams.flatMap {
-            httpClient.get(githubApiUrl + "orgs/navikt/teams/$it/repos") {
+    val teamAndRepositories = runBlocking {
+        githubTeams.map {
+            val urlString = githubApiUrl + "orgs/navikt/teams/$it/repos"
+            val body = httpClient.get(urlString) {
                 parameter("per_page", "100")
             }.body<List<OrgRepository>>()
+            it to body
         }
     }
+
+    val repositories = teamAndRepositories.flatMap { it.second }
     logger.info("Found ${repositories.size} repositories for team(s) ${githubTeams.joinToString { it }} }}")
+
+    teamAndRepositories.forEach { (team, repositories) ->
+        val filtered = repositories.filter {
+            (it.permissions.push || it.permissions.admin || it.permissions.maintain) && !it.archived
+        }.map { it.name }.toSet()
+        logger.info("Found ${repositories.size} repositories for team $team: $filtered")
+    }
 
     // Filter out archived repos & repos that doesn't belong to the team and duplicates
     val teamRepositories = repositories.filter {
