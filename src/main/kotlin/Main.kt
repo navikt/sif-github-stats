@@ -157,7 +157,9 @@ private fun findTeamRepositories(
     // Filter out archived repos & repos that doesn't belong to the team and duplicates
     val teamRepositories = repositories.filter {
         (it.permissions.push || it.permissions.admin || it.permissions.maintain) && !it.archived
-    }.map { it.name }.toSet()
+                && it.name != "arbeidsgiver-notifikasjon-produsenter" // Repo som innholder bare config.
+    }
+        .map { it.name }.toSet()
     logger.info("Filtered out ${repositories.size - teamRepositories.size} repositories")
 
     return teamRepositories
