@@ -58,17 +58,17 @@ fun main() {
         .help("Dependencies awaiting merge")
         .register(collectorRegistry)
 
-    val totalCriticalGauge = Gauge.build()
-        .name("sif_github_stats_dependabot_critical")
-        .labelNames("repository")
-        .help("Dependabot Critical Alerts")
-        .register(collectorRegistry)
-
-    val totalHighGauge = Gauge.build()
-        .name("sif_github_stats_dependabot_high")
-        .labelNames("repository")
-        .help("Dependabot High Alerts")
-        .register(collectorRegistry)
+    // val totalCriticalGauge = Gauge.build()
+    //     .name("sif_github_stats_dependabot_critical")
+    //     .labelNames("repository")
+    //     .help("Dependabot Critical Alerts")
+    //     .register(collectorRegistry)
+    //
+    // val totalHighGauge = Gauge.build()
+    //     .name("sif_github_stats_dependabot_high")
+    //     .labelNames("repository")
+    //     .help("Dependabot High Alerts")
+    //     .register(collectorRegistry)
 
     val totalSecretAlertGauge = Gauge.build()
         .name("sif_github_stats_secret_alerts")
@@ -76,11 +76,11 @@ fun main() {
         .help("Exposed secrets alerts")
         .register(collectorRegistry)
 
-    val totalCodeScanningGauge = Gauge.build()
-        .name("sif_github_stats__code_scanning_criticals")
-        .labelNames("repository")
-        .help("Code scanning critical alerts")
-        .register(collectorRegistry)
+    // val totalCodeScanningGauge = Gauge.build()
+    //     .name("sif_github_stats__code_scanning_criticals")
+    //     .labelNames("repository")
+    //     .help("Code scanning critical alerts")
+    //     .register(collectorRegistry)
 
     val totalLastCommitDaysGauge = Gauge.build()
         .name("sif_github_stats_last_commit_days")
@@ -102,21 +102,21 @@ fun main() {
                 .labels(it.repository)
                 .set(it.openDependenciesSum.toDouble())
 
-            totalCriticalGauge
-                .labels(it.repository)
-                .set(it.criticalAlertsSum.toDouble())
-
-            totalHighGauge
-                .labels(it.repository)
-                .set(it.highAlertsSum.toDouble())
+            // totalCriticalGauge
+            //     .labels(it.repository)
+            //     .set(it.criticalAlertsSum.toDouble())
+            //
+            // totalHighGauge
+            //     .labels(it.repository)
+            //     .set(it.highAlertsSum.toDouble())
 
             totalSecretAlertGauge
                 .labels(it.repository)
                 .set(it.secretAlerts.toDouble())
 
-            totalCodeScanningGauge
-                .labels(it.repository)
-                .set(it.codeScanningCriticalAlerts.toDouble())
+            // totalCodeScanningGauge
+            //     .labels(it.repository)
+            //     .set(it.codeScanningCriticalAlerts.toDouble())
 
             totalLastCommitDaysGauge
                 .labels(it.repository)
@@ -208,21 +208,21 @@ private fun findRepositoryInfo(
 
     logger.info("Received ${repositoryInfo.size} repositories with open pull requests")
 
-    runBlocking {
-        repositoryInfo.forEach {
-            try {
-                val response = httpClient.get(githubApiUrl + "repos/navikt/${it.repository}/dependabot/alerts") {
-                    parameter("per_page", "100")
-                    parameter("state", "open")
-                }
-                it.dependabotAlerts = response.bodyOrThrow<List<DependabotAlert>>()
-            } catch (e: Exception) {
-                logger.error("Error fetching dependabot alerts for repository: ${it.repository}: ${e.message}", e)
-            }
-        }
-    }
-
-    logger.info("Done getting dependabot alerts for ${repositoryInfo.size} repositories")
+    // runBlocking {
+    //     repositoryInfo.forEach {
+    //         try {
+    //             val response = httpClient.get(githubApiUrl + "repos/navikt/${it.repository}/dependabot/alerts") {
+    //                 parameter("per_page", "100")
+    //                 parameter("state", "open")
+    //             }
+    //             it.dependabotAlerts = response.bodyOrThrow<List<DependabotAlert>>()
+    //         } catch (e: Exception) {
+    //             logger.error("Error fetching dependabot alerts for repository: ${it.repository}: ${e.message}", e)
+    //         }
+    //     }
+    // }
+    //
+    // logger.info("Done getting dependabot alerts for ${repositoryInfo.size} repositories")
 
 
     runBlocking {
@@ -259,22 +259,22 @@ private fun findRepositoryInfo(
     logger.info("Done getting secret alerts for ${repositoryInfo.size} repositories")
 
 
-    runBlocking {
-        repositoryInfo.forEach {
-            try {
-                val response = httpClient.get(githubApiUrl + "repos/navikt/${it.repository}/code-scanning/alerts") {
-                    parameter("per_page", "100")
-                    parameter("state", "open")
-                    parameter("severity", "critical")
-                }
-                it.codeScanningCriticalAlerts = response.bodyOrThrow<List<CodescanningAlert>>().size
-            } catch (e: Exception) {
-                logger.error("Error fetching code scanning alerts for repository: ${it.repository}: ${e.message}", e)
-            }
-        }
-    }
-
-    logger.info("Done getting code scanning alerts for ${repositoryInfo.size} repositories")
+    // runBlocking {
+    //     repositoryInfo.forEach {
+    //         try {
+    //             val response = httpClient.get(githubApiUrl + "repos/navikt/${it.repository}/code-scanning/alerts") {
+    //                 parameter("per_page", "100")
+    //                 parameter("state", "open")
+    //                 parameter("severity", "critical")
+    //             }
+    //             it.codeScanningCriticalAlerts = response.bodyOrThrow<List<CodescanningAlert>>().size
+    //         } catch (e: Exception) {
+    //             logger.error("Error fetching code scanning alerts for repository: ${it.repository}: ${e.message}", e)
+    //         }
+    //     }
+    // }
+    //
+    // logger.info("Done getting code scanning alerts for ${repositoryInfo.size} repositories")
 
     return repositoryInfo
 }
@@ -317,16 +317,30 @@ data class RepositoryInfo(
 fun generateLogReport(repositoryInfos: List<RepositoryInfo>) {
     val sections = mutableListOf<String>()
 
-    val security = StringBuilder()
-    repositoryInfos
-        .filter { it.criticalAlertsSum > 0 }
-        .sortedByDescending { it.criticalAlertsSum }
-        .forEach { security.append("\n").append(makeLine(it, it.criticalAlertsSum, "/security/dependabot")) }
-    repositoryInfos
-        .filter { it.codeScanningCriticalAlerts > 0 }
-        .sortedByDescending { it.codeScanningCriticalAlerts }
-        .forEach { security.append("\n").append(makeLine(it, it.codeScanningCriticalAlerts, "/security/code-scanning")) }
-    if (security.isNotEmpty()) sections.add("**Kritiske sikkerhetsvarsler:**$security")
+    // val security = StringBuilder()
+    // repositoryInfos
+    //     .filter { it.criticalAlertsSum > 0 }
+    //     .sortedByDescending { it.criticalAlertsSum }
+    //     .forEach { security.append("\n").append(makeLine(it, it.criticalAlertsSum, "/security/dependabot")) }
+    // repositoryInfos
+    //     .filter { it.codeScanningCriticalAlerts > 0 }
+    //     .sortedByDescending { it.codeScanningCriticalAlerts }
+    //     .forEach { security.append("\n").append(makeLine(it, it.codeScanningCriticalAlerts, "/security/code-scanning")) }
+    // if (security.isNotEmpty()) sections.add("**Kritiske sikkerhetsvarsler:**$security")
+
+    sections.add(
+        """
+        **Kritiske sikkerhetsvarsler:**
+        
+        Sjekk nais console per namespace k9saksbehandling, omsorgspenger og dusseldorf og list antall apper med sikkerhetsvarsel her.
+        - [k9saksbehandling](https://console.nav.cloud.nais.io/team/k9saksbehandling/vulnerabilities?environments=prod-fss%2Cprod-gcp&sort=VULNERABILITY_SEVERITY_CRITICAL-DESC): FYLL INN
+        - [omsorgspenger](https://console.nav.cloud.nais.io/team/omsorgspenger/vulnerabilities?environments=prod-fss%2Cprod-gcp&sort=VULNERABILITY_SEVERITY_CRITICAL-DESC): FYLL INN
+        - [dusseldorf](https://console.nav.cloud.nais.io/team/dusseldorf/vulnerabilities?environments=prod-fss%2Cprod-gcp&sort=VULNERABILITY_SEVERITY_CRITICAL-DESC): FYLL INN
+
+        Varsler i [Titt På Ting](https://tpt.ansatt.nav.no/): FYLL INN
+        
+        """.trimIndent()
+    )
 
     val dependabot = StringBuilder()
     repositoryInfos
