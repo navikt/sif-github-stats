@@ -330,14 +330,9 @@ fun generateLogReport(repositoryInfos: List<RepositoryInfo>) {
 
     sections.add(
         """
-        **Kritiske sikkerhetsvarsler:**
-        
-        Sjekk nais console per namespace k9saksbehandling, omsorgspenger og dusseldorf og list antall apper med sikkerhetsvarsel her.
-        - [k9saksbehandling](https://console.nav.cloud.nais.io/team/k9saksbehandling/vulnerabilities?environments=prod-fss%2Cprod-gcp&sort=VULNERABILITY_SEVERITY_CRITICAL-DESC): FYLL INN
-        - [omsorgspenger](https://console.nav.cloud.nais.io/team/omsorgspenger/vulnerabilities?environments=prod-fss%2Cprod-gcp&sort=VULNERABILITY_SEVERITY_CRITICAL-DESC): FYLL INN
-        - [dusseldorf](https://console.nav.cloud.nais.io/team/dusseldorf/vulnerabilities?environments=prod-fss%2Cprod-gcp&sort=VULNERABILITY_SEVERITY_CRITICAL-DESC): FYLL INN
-
-        Varsler i [Titt På Ting](https://tpt.ansatt.nav.no/): FYLL INN
+        **Kritiske sikkerhetsvarsler i [Titt På Ting](https://tpt.ansatt.nav.no/):**
+        - Immediately: FYLL INN
+        - Must be prioritized: FYLL INN
         
         """.trimIndent()
     )
@@ -362,6 +357,16 @@ fun generateLogReport(repositoryInfos: List<RepositoryInfo>) {
         .sortedByDescending { it.daysSinceLatestCommit }
         .forEach { oldCommits.append("\n").append(makeLine(it, it.daysSinceLatestCommit.toInt(), "")) }
     if (oldCommits.isNotEmpty()) sections.add("**Repoer med commits eldre enn 50 dager:**$oldCommits")
+
+    sections.add(
+        """
+            **[Taskfeil](https://grafana.nav.cloud.nais.io/d/ee11wn4zttczka/k9-drift):**
+            - App: DAGENS_ANTALL (FORRIGE_UKES_ANTALL)
+            
+            **[Portenfeil](https://jira.adeo.no/secure/Dashboard.jspa?selectPageId=53224):**
+            - ANTALL_SAKER åpne saker på ANTALL_UTVIKLERE utviklere
+        """.trimIndent()
+    )
 
     logger.info("Rapport:")
     logger.info(sections.joinToString("\n"))
