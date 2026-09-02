@@ -331,8 +331,8 @@ fun generateLogReport(repositoryInfos: List<RepositoryInfo>) {
     sections.add(
         """
         **Kritiske sikkerhetsvarsler i [Titt På Ting](https://tpt.ansatt.nav.no/):**
-        - Immediately: FYLL INN
-        - Must be prioritized: FYLL INN
+        - Immediately: DAGENS_ANTALL (FORRIGE_UKES_ANTALL)
+        - Must be prioritized: DAGENS_ANTALL (FORRIGE_UKES_ANTALL)
         
         """.trimIndent()
     )
