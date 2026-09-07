@@ -13,7 +13,7 @@ jobs:
       - uses: actions/setup-java@v5.5.0
         with:
           java-version: 25
-          distribution: corretto
+          distribution: temurin
           cache: gradle
 
       - name: Build shadowjar
