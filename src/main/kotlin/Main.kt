@@ -35,7 +35,7 @@ fun main() {
 
     val teamRepositories = findTeamRepositories(githubTeams, httpClient, githubApiUrl)
 
-    logger.info("Alle repositores (${teamRepositories.size}): ${teamRepositories.map { it }}")
+    logger.info("Alle repositores (${teamRepositories.size}): ${teamRepositories.keys}")
 
     val repositoryInfos: List<RepositoryInfo> = findRepositoryInfo(httpClient, githubApiUrl, teamRepositories)
 
@@ -143,7 +143,7 @@ private fun findTeamRepositories(
     githubTeams: List<String>,
     httpClient: HttpClient,
     githubApiUrl: String
-): Set<String> {
+): Map<String, OrgRepository> {
     val teamAndRepositories = runBlocking {
         githubTeams.mapNotNull {
             val urlString = githubApiUrl + "orgs/navikt/teams/$it/repos"
@@ -174,8 +174,9 @@ private fun findTeamRepositories(
     val teamRepositories = repositories.filter {
         (it.permissions.push || it.permissions.admin || it.permissions.maintain) && !it.archived
                 && it.name != "arbeidsgiver-notifikasjon-produsenter" // Repo som innholder bare config.
+                && it.name != "dokgen"
     }
-        .map { it.name }.toSet()
+        .associateBy { it.name }
     logger.info("Filtered out ${repositories.size - teamRepositories.size} repositories")
 
     return teamRepositories
@@ -184,10 +185,10 @@ private fun findTeamRepositories(
 private fun findRepositoryInfo(
     httpClient: HttpClient,
     githubApiUrl: String,
-    teamRepositories: Set<String>
+    teamRepositories: Map<String, OrgRepository>
 ): List<RepositoryInfo> {
     val repositoryInfo: List<RepositoryInfo> = runBlocking {
-        teamRepositories.mapNotNull { repository ->
+        teamRepositories.mapNotNull { (repository, orgRepository) ->
             // Fetch all open pull requests from repository and find total size and dependabots PRs
             try {
                 val response = httpClient.get(githubApiUrl + "repos/navikt/$repository/pulls") {
@@ -198,7 +199,8 @@ private fun findRepositoryInfo(
                 RepositoryInfo(
                     repository,
                     pullRequests.size,
-                    pullRequests.filter { it.user.login == "dependabot[bot]" })
+                    pullRequests.filter { it.user.login == "dependabot[bot]" },
+                    repositoryType = RepositoryType.fromLanguage(orgRepository.language))
             } catch (e: Exception) {
                 logger.error("Error fetching open pull requests for repository: $repository: ${e.message}", e)
                 null
@@ -286,7 +288,8 @@ data class RepositoryInfo(
     var dependabotAlerts: List<DependabotAlert> = emptyList(),
     var secretAlerts: Int = 0,
     var codeScanningCriticalAlerts: Int = 0,
-    var latestCommit: Commit? = null
+    var latestCommit: Commit? = null,
+    var repositoryType: RepositoryType = RepositoryType.UNKNOWN
 ) {
     companion object {
         private val dependabotGroupUpdatesRegEx = "(\\d+)\\s+updates?$".toRegex()
@@ -303,7 +306,7 @@ data class RepositoryInfo(
     val criticalAlertsSum by lazy { dependabotAlerts.filter { it.security_vulnerability.severity == "critical" }.size }
     val highAlertsSum by lazy { dependabotAlerts.filter { it.security_vulnerability.severity == "high" }.size }
     override fun toString(): String {
-        return "RepositoryInfo(repository='$repository', openPRs=$openPRs, secretAlerts=$secretAlerts, codeScanningCriticalAlerts=$codeScanningCriticalAlerts, openDependenciesSum=$openDependenciesSum, criticalAlertsSum=$criticalAlertsSum, highAlertsSum=$highAlertsSum, daysSinceLatestCommit=${daysSinceLatestCommit})"
+        return "RepositoryInfo(repository='$repository', openPRs=$openPRs, secretAlerts=$secretAlerts, codeScanningCriticalAlerts=$codeScanningCriticalAlerts, openDependenciesSum=$openDependenciesSum, criticalAlertsSum=$criticalAlertsSum, highAlertsSum=$highAlertsSum, daysSinceLatestCommit=${daysSinceLatestCommit}, repositoryType=$repositoryType)"
     }
     val daysSinceLatestCommit by lazy {
         require(latestCommit != null) { "latestCommit must be set" }
@@ -339,10 +342,13 @@ fun generateLogReport(repositoryInfos: List<RepositoryInfo>) {
 
     val dependabot = StringBuilder()
     repositoryInfos
-        .filter { it.openDependenciesSum > 9 }
+        .filter { it.openDependenciesSum > if (it.repositoryType == RepositoryType.FRONTEND) 39 else 9 }
         .sortedByDescending { it.openDependenciesSum }
         .forEach { dependabot.append("\n").append(makeLine(it, it.openDependenciesSum, "/pulls")) }
-    if (dependabot.isNotEmpty()) sections.add("**Mange dependabots:**$dependabot")
+    if (dependabot.isNotEmpty()) {
+        sections.add("**Mange dependabots:**$dependabot")
+
+    }
 
     val secret = StringBuilder()
     repositoryInfos
@@ -360,11 +366,14 @@ fun generateLogReport(repositoryInfos: List<RepositoryInfo>) {
 
     sections.add(
         """
+            **[Ikke deployet på en måned](https://grafana.nav.cloud.nais.io/d/ee11wn4zttczka/k9-drift?from=now-5m&to=now&timezone=browser&refresh=30s&viewPanel=panel-2084):**
+            - App            
+            
             **[Taskfeil](https://grafana.nav.cloud.nais.io/d/ee11wn4zttczka/k9-drift):**
             - App: DAGENS_ANTALL (FORRIGE_UKES_ANTALL)
             
             **[Portenfeil](https://jira.adeo.no/secure/Dashboard.jspa?selectPageId=53224):**
-            - ANTALL_SAKER åpne saker på ANTALL_UTVIKLERE utviklere
+            - ANTALL_SAKER (FORRIGE_UKES_ANTALL) åpne saker på ANTALL_UTVIKLERE utviklere 
         """.trimIndent()
     )
 
@@ -376,6 +385,21 @@ private fun makeLine(repo: RepositoryInfo, amount: Int, githubPostfix: String): 
     return "- [${repo.repository}](https://github.com/navikt/${repo.repository}$githubPostfix) $amount"
 }
 
+
+enum class RepositoryType {
+    FRONTEND, BACKEND, UNKNOWN;
+
+    companion object {
+        private val frontendLanguages = setOf("JavaScript", "TypeScript", "Vue", "HTML", "CSS", "SCSS")
+        private val backendLanguages = setOf("Kotlin", "Java", "Go", "Python", "C#", "Rust", "Ruby", "PHP")
+
+        fun fromLanguage(language: String?): RepositoryType = when (language) {
+            in frontendLanguages -> FRONTEND
+            in backendLanguages -> BACKEND
+            else -> UNKNOWN
+        }
+    }
+}
 
 @Serializable
 data class PullRequest(
@@ -413,7 +437,8 @@ data class OrgRepository(
     val name: String,
     val archived: Boolean,
     val visibility: String,
-    val permissions: Permissions
+    val permissions: Permissions,
+    val language: String? = null
 )
 
 @Serializable
