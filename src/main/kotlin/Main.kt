@@ -429,10 +429,13 @@ enum class RepositoryType {
         private val frontendLanguages = setOf("JavaScript", "TypeScript", "Vue", "HTML", "CSS", "SCSS")
         private val backendLanguages = setOf("Kotlin", "Java", "Go", "Python", "C#", "Rust", "Ruby", "PHP")
 
-        fun fromLanguage(language: String?): RepositoryType = when (language) {
-            in frontendLanguages -> FRONTEND
-            in backendLanguages -> BACKEND
-            else -> UNKNOWN
+        fun fromLanguage(language: String?): RepositoryType {
+            if (language == null) return UNKNOWN
+            return when (language) {
+                in frontendLanguages -> FRONTEND
+                in backendLanguages -> BACKEND
+                else -> UNKNOWN
+            }
         }
     }
 }
