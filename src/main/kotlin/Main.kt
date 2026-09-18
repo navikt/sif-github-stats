@@ -54,7 +54,13 @@ fun main() {
     val teamRepositories = findTeamRepositories(githubTeams, httpClient, githubApiUrl)
 
     logger.info("Alle repositores (${teamRepositories.size}): ${teamRepositories.keys}")
-
+    val repositoryTypeCounts = teamRepositories.values.groupingBy { RepositoryType.fromLanguage(it.language) }.eachCount()
+    logger.info(
+        "Type repoer - Frontend: {} Backend: {} Unknown: {}",
+        repositoryTypeCounts[RepositoryType.FRONTEND] ?: 0,
+        repositoryTypeCounts[RepositoryType.BACKEND] ?: 0,
+        repositoryTypeCounts[RepositoryType.UNKNOWN] ?: 0,
+    )
     val repositoryInfos: List<RepositoryInfo> = findRepositoryInfo(httpClient, githubApiUrl, teamRepositories)
 
 
