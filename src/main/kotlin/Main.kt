@@ -16,11 +16,29 @@ import java.time.temporal.ChronoUnit
 
 val logger = LoggerFactory.getLogger("Main")
 
+class GithubApiException(val status: HttpStatusCode, message: String) : RuntimeException(message)
+
 suspend inline fun <reified T> HttpResponse.bodyOrThrow(): T {
     if (!status.isSuccess()) {
-        throw RuntimeException("HTTP $status: ${bodyAsText()}")
+        throw GithubApiException(status, "HTTP $status: ${bodyAsText()}")
     }
     return body<T>()
+}
+
+/**
+ * Logger feil fra Github-kall. 404/403 regnes som forventet (f.eks. en feature som ikke er
+ * skrudd på for repoet), og logges stille uten stacktrace for å unngå logg-spam. Alt annet
+ * logges som en reell feil. Returnerer true hvis feilen var forventet.
+ */
+private fun logFetchError(operation: String, repository: String, e: Exception): Boolean {
+    val status = (e as? GithubApiException)?.status
+    return if (status == HttpStatusCode.NotFound || status == HttpStatusCode.Forbidden) {
+        logger.debug("{} ikke tilgjengelig for {} ({})", operation, repository, status)
+        true
+    } else {
+        logger.error("Error {} for repository {}", operation, repository, e)
+        false
+    }
 }
 
 
@@ -187,6 +205,7 @@ private fun findRepositoryInfo(
     githubApiUrl: String,
     teamRepositories: Map<String, OrgRepository>
 ): List<RepositoryInfo> {
+    val skippedPulls = mutableListOf<String>()
     val repositoryInfo: List<RepositoryInfo> = runBlocking {
         teamRepositories.mapNotNull { (repository, orgRepository) ->
             // Fetch all open pull requests from repository and find total size and dependabots PRs
@@ -202,10 +221,13 @@ private fun findRepositoryInfo(
                     pullRequests.filter { it.user.login == "dependabot[bot]" },
                     repositoryType = RepositoryType.fromLanguage(orgRepository.language))
             } catch (e: Exception) {
-                logger.error("Error fetching open pull requests for repository: $repository: ${e.message}", e)
+                if (logFetchError("fetching open pull requests", repository, e)) skippedPulls.add(repository)
                 null
             }
         }
+    }
+    if (skippedPulls.isNotEmpty()) {
+        logger.info("Pull requests ikke tilgjengelig for ${skippedPulls.size} repo(er): $skippedPulls")
     }
 
     logger.info("Received ${repositoryInfo.size} repositories with open pull requests")
@@ -227,6 +249,7 @@ private fun findRepositoryInfo(
     // logger.info("Done getting dependabot alerts for ${repositoryInfo.size} repositories")
 
 
+    val skippedCommits = mutableListOf<String>()
     runBlocking {
         repositoryInfo.forEach {
             try {
@@ -236,14 +259,18 @@ private fun findRepositoryInfo(
                 val commits = response.bodyOrThrow<List<Commit>>()
                 it.latestCommit = commits.firstOrNull() ?: throw IllegalStateException("No commits found")
             } catch (e: Exception) {
-                logger.error("Error fetching latest commit for repository: ${it.repository}: ${e.message}", e)
+                if (logFetchError("fetching latest commit", it.repository, e)) skippedCommits.add(it.repository)
             }
         }
+    }
+    if (skippedCommits.isNotEmpty()) {
+        logger.info("Siste commit ikke tilgjengelig for ${skippedCommits.size} repo(er): $skippedCommits")
     }
 
     logger.info("Done getting latest commit for ${repositoryInfo.size} repositories")
 
 
+    val skippedSecretAlerts = mutableListOf<String>()
     runBlocking {
         repositoryInfo.forEach {
             try {
@@ -253,9 +280,12 @@ private fun findRepositoryInfo(
                 }
                 it.secretAlerts = response.bodyOrThrow<List<SecretAlert>>().size
             } catch (e: Exception) {
-                logger.error("Error fetching secret alerts for repository: ${it.repository}: ${e.message}", e)
+                if (logFetchError("fetching secret alerts", it.repository, e)) skippedSecretAlerts.add(it.repository)
             }
         }
+    }
+    if (skippedSecretAlerts.isNotEmpty()) {
+        logger.warn("Secret alerts ikke tilgjengelig for ${skippedSecretAlerts.size} repo(er): $skippedSecretAlerts")
     }
 
     logger.info("Done getting secret alerts for ${repositoryInfo.size} repositories")
