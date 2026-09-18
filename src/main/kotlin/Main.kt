@@ -16,11 +16,29 @@ import java.time.temporal.ChronoUnit
 
 val logger = LoggerFactory.getLogger("Main")
 
+class GithubApiException(val status: HttpStatusCode, message: String) : RuntimeException(message)
+
 suspend inline fun <reified T> HttpResponse.bodyOrThrow(): T {
     if (!status.isSuccess()) {
-        throw RuntimeException("HTTP $status: ${bodyAsText()}")
+        throw GithubApiException(status, "HTTP $status: ${bodyAsText()}")
     }
     return body<T>()
+}
+
+/**
+ * Logger feil fra Github-kall. 404/403 regnes som forventet (f.eks. en feature som ikke er
+ * skrudd på for repoet), og logges stille uten stacktrace for å unngå logg-spam. Alt annet
+ * logges som en reell feil. Returnerer true hvis feilen var forventet.
+ */
+private fun logFetchError(operation: String, repository: String, e: Exception): Boolean {
+    val status = (e as? GithubApiException)?.status
+    return if (status == HttpStatusCode.NotFound || status == HttpStatusCode.Forbidden) {
+        logger.debug("{} ikke tilgjengelig for {} ({})", operation, repository, status)
+        true
+    } else {
+        logger.error("Error {} for repository {}", operation, repository, e)
+        false
+    }
 }
 
 
@@ -35,8 +53,14 @@ fun main() {
 
     val teamRepositories = findTeamRepositories(githubTeams, httpClient, githubApiUrl)
 
-    logger.info("Alle repositores (${teamRepositories.size}): ${teamRepositories.map { it }}")
-
+    logger.info("Alle repositores (${teamRepositories.size}): ${teamRepositories.keys}")
+    val repositoryTypeCounts = teamRepositories.values.groupingBy { RepositoryType.fromLanguage(it.language) }.eachCount()
+    logger.info(
+        "Type repoer - Frontend: {} Backend: {} Unknown: {}",
+        repositoryTypeCounts[RepositoryType.FRONTEND] ?: 0,
+        repositoryTypeCounts[RepositoryType.BACKEND] ?: 0,
+        repositoryTypeCounts[RepositoryType.UNKNOWN] ?: 0,
+    )
     val repositoryInfos: List<RepositoryInfo> = findRepositoryInfo(httpClient, githubApiUrl, teamRepositories)
 
 
@@ -143,7 +167,7 @@ private fun findTeamRepositories(
     githubTeams: List<String>,
     httpClient: HttpClient,
     githubApiUrl: String
-): Set<String> {
+): Map<String, OrgRepository> {
     val teamAndRepositories = runBlocking {
         githubTeams.mapNotNull {
             val urlString = githubApiUrl + "orgs/navikt/teams/$it/repos"
@@ -174,8 +198,9 @@ private fun findTeamRepositories(
     val teamRepositories = repositories.filter {
         (it.permissions.push || it.permissions.admin || it.permissions.maintain) && !it.archived
                 && it.name != "arbeidsgiver-notifikasjon-produsenter" // Repo som innholder bare config.
+                && it.name != "dokgen"
     }
-        .map { it.name }.toSet()
+        .associateBy { it.name }
     logger.info("Filtered out ${repositories.size - teamRepositories.size} repositories")
 
     return teamRepositories
@@ -184,10 +209,11 @@ private fun findTeamRepositories(
 private fun findRepositoryInfo(
     httpClient: HttpClient,
     githubApiUrl: String,
-    teamRepositories: Set<String>
+    teamRepositories: Map<String, OrgRepository>
 ): List<RepositoryInfo> {
+    val skippedPulls = mutableListOf<String>()
     val repositoryInfo: List<RepositoryInfo> = runBlocking {
-        teamRepositories.mapNotNull { repository ->
+        teamRepositories.mapNotNull { (repository, orgRepository) ->
             // Fetch all open pull requests from repository and find total size and dependabots PRs
             try {
                 val response = httpClient.get(githubApiUrl + "repos/navikt/$repository/pulls") {
@@ -198,12 +224,16 @@ private fun findRepositoryInfo(
                 RepositoryInfo(
                     repository,
                     pullRequests.size,
-                    pullRequests.filter { it.user.login == "dependabot[bot]" })
+                    pullRequests.filter { it.user.login == "dependabot[bot]" },
+                    repositoryType = RepositoryType.fromLanguage(orgRepository.language))
             } catch (e: Exception) {
-                logger.error("Error fetching open pull requests for repository: $repository: ${e.message}", e)
+                if (logFetchError("fetching open pull requests", repository, e)) skippedPulls.add(repository)
                 null
             }
         }
+    }
+    if (skippedPulls.isNotEmpty()) {
+        logger.info("Pull requests ikke tilgjengelig for ${skippedPulls.size} repo(er): $skippedPulls")
     }
 
     logger.info("Received ${repositoryInfo.size} repositories with open pull requests")
@@ -225,6 +255,7 @@ private fun findRepositoryInfo(
     // logger.info("Done getting dependabot alerts for ${repositoryInfo.size} repositories")
 
 
+    val skippedCommits = mutableListOf<String>()
     runBlocking {
         repositoryInfo.forEach {
             try {
@@ -234,14 +265,18 @@ private fun findRepositoryInfo(
                 val commits = response.bodyOrThrow<List<Commit>>()
                 it.latestCommit = commits.firstOrNull() ?: throw IllegalStateException("No commits found")
             } catch (e: Exception) {
-                logger.error("Error fetching latest commit for repository: ${it.repository}: ${e.message}", e)
+                if (logFetchError("fetching latest commit", it.repository, e)) skippedCommits.add(it.repository)
             }
         }
+    }
+    if (skippedCommits.isNotEmpty()) {
+        logger.info("Siste commit ikke tilgjengelig for ${skippedCommits.size} repo(er): $skippedCommits")
     }
 
     logger.info("Done getting latest commit for ${repositoryInfo.size} repositories")
 
 
+    val skippedSecretAlerts = mutableListOf<String>()
     runBlocking {
         repositoryInfo.forEach {
             try {
@@ -251,9 +286,12 @@ private fun findRepositoryInfo(
                 }
                 it.secretAlerts = response.bodyOrThrow<List<SecretAlert>>().size
             } catch (e: Exception) {
-                logger.error("Error fetching secret alerts for repository: ${it.repository}: ${e.message}", e)
+                if (logFetchError("fetching secret alerts", it.repository, e)) skippedSecretAlerts.add(it.repository)
             }
         }
+    }
+    if (skippedSecretAlerts.isNotEmpty()) {
+        logger.warn("Secret alerts ikke tilgjengelig for ${skippedSecretAlerts.size} repo(er): $skippedSecretAlerts")
     }
 
     logger.info("Done getting secret alerts for ${repositoryInfo.size} repositories")
@@ -286,7 +324,8 @@ data class RepositoryInfo(
     var dependabotAlerts: List<DependabotAlert> = emptyList(),
     var secretAlerts: Int = 0,
     var codeScanningCriticalAlerts: Int = 0,
-    var latestCommit: Commit? = null
+    var latestCommit: Commit? = null,
+    var repositoryType: RepositoryType = RepositoryType.UNKNOWN
 ) {
     companion object {
         private val dependabotGroupUpdatesRegEx = "(\\d+)\\s+updates?$".toRegex()
@@ -303,7 +342,7 @@ data class RepositoryInfo(
     val criticalAlertsSum by lazy { dependabotAlerts.filter { it.security_vulnerability.severity == "critical" }.size }
     val highAlertsSum by lazy { dependabotAlerts.filter { it.security_vulnerability.severity == "high" }.size }
     override fun toString(): String {
-        return "RepositoryInfo(repository='$repository', openPRs=$openPRs, secretAlerts=$secretAlerts, codeScanningCriticalAlerts=$codeScanningCriticalAlerts, openDependenciesSum=$openDependenciesSum, criticalAlertsSum=$criticalAlertsSum, highAlertsSum=$highAlertsSum, daysSinceLatestCommit=${daysSinceLatestCommit})"
+        return "RepositoryInfo(repository='$repository', openPRs=$openPRs, secretAlerts=$secretAlerts, codeScanningCriticalAlerts=$codeScanningCriticalAlerts, openDependenciesSum=$openDependenciesSum, criticalAlertsSum=$criticalAlertsSum, highAlertsSum=$highAlertsSum, daysSinceLatestCommit=${daysSinceLatestCommit}, repositoryType=$repositoryType)"
     }
     val daysSinceLatestCommit by lazy {
         require(latestCommit != null) { "latestCommit must be set" }
@@ -339,10 +378,13 @@ fun generateLogReport(repositoryInfos: List<RepositoryInfo>) {
 
     val dependabot = StringBuilder()
     repositoryInfos
-        .filter { it.openDependenciesSum > 9 }
+        .filter { it.openDependenciesSum > if (it.repositoryType == RepositoryType.FRONTEND) 39 else 9 }
         .sortedByDescending { it.openDependenciesSum }
         .forEach { dependabot.append("\n").append(makeLine(it, it.openDependenciesSum, "/pulls")) }
-    if (dependabot.isNotEmpty()) sections.add("**Mange dependabots:**$dependabot")
+    if (dependabot.isNotEmpty()) {
+        sections.add("**Mange dependabots:**$dependabot")
+
+    }
 
     val secret = StringBuilder()
     repositoryInfos
@@ -360,11 +402,14 @@ fun generateLogReport(repositoryInfos: List<RepositoryInfo>) {
 
     sections.add(
         """
+            **[Ikke deployet på en måned](https://grafana.nav.cloud.nais.io/d/ee11wn4zttczka/k9-drift?from=now-5m&to=now&timezone=browser&refresh=30s&viewPanel=panel-2084):**
+            - App            
+            
             **[Taskfeil](https://grafana.nav.cloud.nais.io/d/ee11wn4zttczka/k9-drift):**
             - App: DAGENS_ANTALL (FORRIGE_UKES_ANTALL)
             
             **[Portenfeil](https://jira.adeo.no/secure/Dashboard.jspa?selectPageId=53224):**
-            - ANTALL_SAKER åpne saker på ANTALL_UTVIKLERE utviklere
+            - ANTALL_SAKER (FORRIGE_UKES_ANTALL) åpne saker på ANTALL_UTVIKLERE utviklere 
         """.trimIndent()
     )
 
@@ -376,6 +421,24 @@ private fun makeLine(repo: RepositoryInfo, amount: Int, githubPostfix: String): 
     return "- [${repo.repository}](https://github.com/navikt/${repo.repository}$githubPostfix) $amount"
 }
 
+
+enum class RepositoryType {
+    FRONTEND, BACKEND, UNKNOWN;
+
+    companion object {
+        private val frontendLanguages = setOf("JavaScript", "TypeScript", "Vue", "HTML", "CSS", "SCSS")
+        private val backendLanguages = setOf("Kotlin", "Java", "Go", "Python", "C#", "Rust", "Ruby", "PHP")
+
+        fun fromLanguage(language: String?): RepositoryType {
+            if (language == null) return UNKNOWN
+            return when (language) {
+                in frontendLanguages -> FRONTEND
+                in backendLanguages -> BACKEND
+                else -> UNKNOWN
+            }
+        }
+    }
+}
 
 @Serializable
 data class PullRequest(
@@ -413,7 +476,8 @@ data class OrgRepository(
     val name: String,
     val archived: Boolean,
     val visibility: String,
-    val permissions: Permissions
+    val permissions: Permissions,
+    val language: String? = null
 )
 
 @Serializable
