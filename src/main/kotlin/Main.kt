@@ -378,7 +378,13 @@ fun generateLogReport(repositoryInfos: List<RepositoryInfo>) {
 
     val dependabot = StringBuilder()
     repositoryInfos
-        .filter { it.openDependenciesSum > if (it.repositoryType == RepositoryType.FRONTEND) 39 else 9 }
+        .filter {
+            it.openDependenciesSum > when {
+                it.repository == "sif-baseimages" -> 0
+                it.repositoryType == RepositoryType.FRONTEND -> 39
+                else -> 9
+            }
+        }
         .sortedByDescending { it.openDependenciesSum }
         .forEach { dependabot.append("\n").append(makeLine(it, it.openDependenciesSum, "/pulls")) }
     if (dependabot.isNotEmpty()) {
